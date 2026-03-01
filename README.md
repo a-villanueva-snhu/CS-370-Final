@@ -11,7 +11,9 @@ Feb. 28, 2026
   The final submission is a Jupyter Notebook that trains and evaluates a pirate agent using reinforcement learning concepts covered throughout the course.
 
 
+
 **Brief Explanation of the Work Performed**
+  
   For this project, I was provided with starter code that defined the game environment, supporting Python files, and the underlying artificial neural network (ANN) structure. These files handled environment setup, state representation, reward logic, and the core neural network implementation.
   My primary contribution was implementing the reinforcement learning logic inside the Jupyter Notebook where indicated. This included:
   
@@ -28,10 +30,12 @@ Feb. 28, 2026
 **Connecting This Project to the Field of Computer Science**
 
 **What Do Computer Scientists Do and Why Does It Matter?**
+  
   Computer scientists design, analyze, and improve systems that solve problems efficiently and reliably. This project reflects that role by requiring the transformation of an abstract problem - decision-making in an uncertain environment - into a structured computational solution.
   Reinforcement learning is especially important because it mirrors how real-world systems must adapt without perfect information. Applications range from robotics and game AI to recommendation systems and autonomous vehicles, making this work directly relevant to modern computing challenges.
 
 **How I Approach a Problem as a Computer Scientist**
+
 This project reinforced a structured approach to problem-solving:
 
 - Understand the problem domain: Identify how the environment works, what actions are possible, and how success is measured.
@@ -45,6 +49,7 @@ This project reinforced a structured approach to problem-solving:
   Rather than hard-coding behavior, I focused on building a system that learns, which is a key mindset in computer science when dealing with complex or dynamic problems.
 
 **Ethical Responsibilities to the End User and the Organization**
+  
   As a computer scientist, I have an ethical responsibility to ensure that intelligent systems behave predictably, transparently, and safely. Even in a simplified project like this, it is important to consider:
 
 - Reliability: Ensuring the agent behaves consistently and does not exploit unintended loopholes.
