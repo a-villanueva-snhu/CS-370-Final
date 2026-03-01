@@ -27,9 +27,11 @@ Feb. 28, 2026
 
   I did not modify the provided Python files or the prebuilt ANN setup. Instead, I focused on correctly using these components to train an intelligent agent that improves performance over time through experience.
 
+
 **Connecting This Project to the Field of Computer Science**
 
-**What Do Computer Scientists Do and Why Does It Matter?**
+
+  **What Do Computer Scientists Do and Why Does It Matter?**
   
   Computer scientists design, analyze, and improve systems that solve problems efficiently and reliably. This project reflects that role by requiring the transformation of an abstract problem - decision-making in an uncertain environment - into a structured computational solution.
   Reinforcement learning is especially important because it mirrors how real-world systems must adapt without perfect information. Applications range from robotics and game AI to recommendation systems and autonomous vehicles, making this work directly relevant to modern computing challenges.
