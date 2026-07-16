@@ -1,0 +1,26 @@
+# This is the core configuration file for GaiaML. 
+# It contains settings and parameters that control the behavior of the application.
+# As well as all constant definitions for the application.
+
+## GaiaML Core Configuration
+project_name: "GaiaML"
+version: "1.0.0"
+is_active: true
+
+database_settings:
+  host: "localhost"
+  port: 5432
+  username: "gaia_user"
+  password: "secure_password"
+  database_name: "gaiaml_db"
+
+logging:
+  level: "INFO"
+  log_file_path: "/logs/gaiaml/app.log"
+
+
+
+
+## GaiaML Constants
+user_greeting: "Welcome to GaiaML!"
+boosting_round_num: 100       # The number of boosting rounds for the model training.

@@ -1,0 +1,1 @@
+# A simple downloader for fetching Gaia DR3 data from ESA's Gaia Archive.

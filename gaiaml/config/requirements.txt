@@ -1,0 +1,7 @@
+numpy==1.26.4
+keras
+sqlite3
+xgboost
+scipy
+sklearn
+pandas
