@@ -33,5 +33,10 @@ The project is organized around data preparation, model training, evaluation, an
 
 Deprecated artifacts such as `TreasureHuntGame`, `TreasureMaze.py`, and `GameExperience.py` are intentionally excluded from the final project structure and documentation.
 
+# CLI Flowchart
+The core of GaiaML is a command-line interface which uses a menu as a state machine 
+to match user input strings to functional modules. 
+
+![CLI Flowchart]("gaiaml/embeds/gaiaml_corepipeline.drawio.png")
 
 
