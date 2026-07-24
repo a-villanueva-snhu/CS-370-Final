@@ -24,6 +24,12 @@ stream_handler.setFormatter(formatter)
 logger.addHandler(file_handler)
 logger.addHandler(stream_handler)
 
+def __exit__(self, exc_type, exc_value, traceback):
+    # Clean up the logger handlers when the program exits
+    for handler in logger.handlers:
+        handler.close()
+        logger.removeHandler(handler)
+
 
 ## API functions for using this file as a logger
 def log_info(message):

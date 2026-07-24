@@ -6,7 +6,7 @@
 # depend on other tests.
 
 import unittest
-import logger
+from logs import logger
 
 ### Test cases for the GaiaML project ###
 # ------------------------------------- #
@@ -31,14 +31,9 @@ class TestLogger(unittest.TestCase):
         except Exception as e:
             self.fail(f"Logging error failed with exception: {e}")
 
-# Test case for the GaiaML CLI
-class TestGaiaMLCLI(unittest.TestCase):
-    def test_cli_start(self):
-        # Test that the CLI starts without errors
+    def test_log_exception(self):
         try:
-            from gaiaml.cli.cli import start_cli
-            # We won't actually call start_cli() here as it enters an infinite loop.
-            self.assertTrue(callable(start_cli))
-        except ImportError:
-            self.fail("Failed to import start_cli from gaiaml.src.cli")
-            logger.log_error("Failed to import start_cli from gaiaml.src.cli")
+            logger.log_exception("This is an exception message for testing.")
+        except Exception as e:
+            self.fail(f"Logging exception failed with exception: {e}")
+

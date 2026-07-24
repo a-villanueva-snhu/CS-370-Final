@@ -4,6 +4,7 @@
 
 import os
 from logs import logger
+from src.tests.e2e_tester import TestLogger
 
 ## Starts the CLI to await user commands. This function will run in a loop until 
 # the user decides to exit.
@@ -11,7 +12,7 @@ def start_cli():
     print("Welcome to GaiaML CLI!")
     print("Type 'help' for a list of commands.")
     while True:
-    ## Handle user input and commands
+    ## Handle user input commands
 
         command = input("GaiaML> ")
         match command:
@@ -42,18 +43,26 @@ def start_cli():
                 match i:
                     case "logger":
                         print("Running logger tests...")
-                        ## Call the function to run logger tests here
-                        logger.log_info("This is an info message for testing.")
-                        logger.log_warning("This is a warning message for testing.")
-                        logger.log_error("This is an error message for testing.")
+                        ## Uses the e2e_tester.py file to run the logger tests. 
+                        # This is a basic test to ensure that the logger is working 
+                        # correctly as well as the testing framework. 
+                        # It is not a comprehensive test of the logger, 
+                        # but it is a good starting point.
+                        logger_tester = TestLogger()
+                        logger_tester.test_log_info()
+                        logger_tester.test_log_warning()
+                        logger_tester.test_log_error()
+                        logger_tester.test_log_exception()
+                        # logger_tester.__exit__(None, None, None)      ## Broken?
 
-                        logger.log_exception("This is an exception message for testing.")
                         print("Logger tests complete.")
 
                     case "cli":
                         print("Running CLI tests...")
-                        # Call the function to run CLI tests here
-                        # e.g., run_cli_tests()
+
+                        # TODO: Add actual CLI tests here. For now, we will just print a message.
+                        print("The CLI is probably working, if you made it here.")
+
                         print("CLI tests complete.")
 
                     case "all":

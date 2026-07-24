@@ -18,3 +18,13 @@ NoneType: None
 2026-07-24 17:24:28,770 - gaiaml - ERROR - This is an error message for testing.
 2026-07-24 17:24:28,770 - gaiaml - ERROR - This is an exception message for testing.
 NoneType: None
+2026-07-24 17:30:22,344 - gaiaml - INFO - This is an info message for testing.
+2026-07-24 17:30:22,345 - gaiaml - WARNING - This is a warning message for testing.
+2026-07-24 17:30:22,345 - gaiaml - ERROR - This is an error message for testing.
+2026-07-24 17:30:22,345 - gaiaml - ERROR - This is an exception message for testing.
+NoneType: None
+2026-07-24 17:37:11,505 - gaiaml - INFO - This is an info message for testing.
+2026-07-24 17:37:11,506 - gaiaml - WARNING - This is a warning message for testing.
+2026-07-24 17:37:11,506 - gaiaml - ERROR - This is an error message for testing.
+2026-07-24 17:37:11,506 - gaiaml - ERROR - This is an exception message for testing.
+NoneType: None

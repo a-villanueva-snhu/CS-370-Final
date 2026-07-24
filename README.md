@@ -37,6 +37,6 @@ Deprecated artifacts such as `TreasureHuntGame`, `TreasureMaze.py`, and `GameExp
 The core of GaiaML is a command-line interface which uses a menu as a state machine 
 to match user input strings to functional modules. 
 
-![CLI Flowchart]("gaiaml/embeds/gaiaml_corepipeline.drawio.png")
+![CLI Flowchart](gaiaml/embeds/gaiaml_corepipeline.drawio.png)
 
 
