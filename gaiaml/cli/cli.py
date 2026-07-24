@@ -2,10 +2,8 @@
 # It handles user input and output, and provides a way to 
 # interact with the application.
 
-import sys
 import os
-import logs.logger as logger
-
+from logs import logger
 
 ## Starts the CLI to await user commands. This function will run in a loop until 
 # the user decides to exit.
@@ -26,6 +24,24 @@ def start_cli():
                 print("  help - Show this help message")
                 print("  exit/quit/q/e - Exit the CLI")
                 # Add more commands as needed
+
+            ## Testing, config and logging commands
+            case "test":
+                print("Running tests...")
+                # Call the function to run tests here
+                # e.g., run_tests()
+                print("Tests complete.")
+            case "config":
+                print("Loading configuration...")
+                # Call the function to load configuration here
+                # e.g., load_configuration()
+                print("Configuration loaded.")
+            case "log":
+                print("Opening log folder...")
+                log_folder = os.path.join(os.getcwd(), "logs")
+                if not os.path.exists(log_folder):
+                    os.makedirs(log_folder)
+                os.startfile(log_folder)
 
             ## Data Downloading Commands
             case "download":
