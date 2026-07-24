@@ -19,8 +19,6 @@ logging:
   log_file_path: "/logs/gaiaml/app.log"
 
 
-
-
 ## GaiaML Constants
 user_greeting: "Welcome to GaiaML!"
 boosting_round_num: 100       # The number of boosting rounds for the model training.
