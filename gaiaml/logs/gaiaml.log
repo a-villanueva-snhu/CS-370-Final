@@ -1,0 +1,5 @@
+2026-07-24 17:22:22,681 - gaiaml - INFO - This is an info message for testing.
+2026-07-24 17:22:22,681 - gaiaml - WARNING - This is a warning message for testing.
+2026-07-24 17:22:22,681 - gaiaml - ERROR - This is an error message for testing.
+2026-07-24 17:22:22,681 - gaiaml - ERROR - This is an exception message for testing.
+NoneType: None

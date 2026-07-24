@@ -22,21 +22,56 @@ def start_cli():
             case "help":
                 print("Available commands:")
                 print("  help - Show this help message")
+                print("  test - Run tests for the project")
+                print("  config - Load configuration for the project")
+                print("  logs - Open the log folder")
+                print("  download - Download data from Gaia DR3 or NasaEA")
+                print("  preprocess - Preprocess the downloaded data")
+                print("  train - Train the model with the preprocessed data")
+                print("  evaluate - Evaluate the trained model")
+                print("  deploy - Deploy the trained model")
+                print("  visualize - Visualize the data and model results")
+
+
                 print("  exit/quit/q/e - Exit the CLI")
                 # Add more commands as needed
 
             ## Testing, config and logging commands
             case "test":
-                print("Running tests...")
-                # Call the function to run tests here
-                # e.g., run_tests()
-                print("Tests complete.")
+                i = input("Enter the test to run | logger | cli | all | : ")
+                match i:
+                    case "logger":
+                        print("Running logger tests...")
+                        ## Call the function to run logger tests here
+                        logger.log_info("This is an info message for testing.")
+                        logger.log_warning("This is a warning message for testing.")
+                        logger.log_error("This is an error message for testing.")
+
+                        logger.log_exception("This is an exception message for testing.")
+                        print("Logger tests complete.")
+
+                    case "cli":
+                        print("Running CLI tests...")
+                        # Call the function to run CLI tests here
+                        # e.g., run_cli_tests()
+                        print("CLI tests complete.")
+
+                    case "all":
+                        print("Running all tests...")
+                        # Call the function to run all tests here
+                        # e.g., run_all_tests()
+                        print("All tests complete.")
+                    case _:
+                        print(f"Unknown test: {i}. Please enter 'logger', 'cli', or 'all'.")
+
             case "config":
                 print("Loading configuration...")
                 # Call the function to load configuration here
                 # e.g., load_configuration()
                 print("Configuration loaded.")
-            case "log":
+
+            ## Opens the log folder in the file explorer. This is useful for quickly accessing log files.
+            case "logs":
                 print("Opening log folder...")
                 log_folder = os.path.join(os.getcwd(), "logs")
                 if not os.path.exists(log_folder):
