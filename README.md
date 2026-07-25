@@ -5,6 +5,10 @@ July 20, 2026
 
 Version:
 
+1.1.0     |     Added User Guide, Developer Guide,       
+          |         Installation and Configuration sections
+          |     Added Testing and Model Management descriptions
+
 1.0.0     |     Added basic description and module breakdown
 
 
@@ -42,11 +46,82 @@ to match user input strings to functional modules.
 
 # Installation
 Prerequisites:
-- Python 3
-- 
+- Python 3.8 or higher
+- pip (Python package manager)
+
+Required packages:
+- xgboost
+- pandas
+- numpy
+- scikit-learn
+- pyyaml
+- requests
+
+To install dependencies:
+```bash
+pip install -r requirements.txt
+```
 
 # User Guide
 
-Run main.py to launch the program.
+Run `main.py` to launch the program:
+```bash
+python main.py
+```
 
-The CLI guides 
+The CLI guides you through the following options:
+1. Download and prepare data
+2. Train the XGBoost model
+3. Evaluate model performance
+4. Predict on new Gaia DR3 candidates
+
+Follow the on-screen prompts to select your desired workflow.
+
+# Developer Guide
+
+## Code Organization
+
+All source code is located in the `src/` directory. Each module handles a specific phase of the data pipeline:
+
+- **Data Ingestion**: `gaia_` & `_nasa_downloader.py` manages API calls and file I/O
+- **Feature Engineering**: `preprocessor.py` implements scaling, normalization, and feature derivation
+- **Model Training**: `xgboost_trainer.py` handles hyperparameter tuning and model serialization
+- **Evaluation**: `model_evaluator.py` generates metrics and validation reports
+- **Inference**: `model.py` applies trained models to new data
+
+## Configuration
+
+All configurable parameters should be defined in `config/config.yaml`. This includes:
+- Data source URLs and API endpoints
+- Feature lists and engineering parameters
+- XGBoost hyperparameters
+- Train/test split ratios
+- Output paths and logging levels
+
+## Testing
+
+Unit tests are located in the `tests/` directory and follow the naming convention `test_*.py`. To run tests:
+
+```bash
+python -m pytest tests/ -v
+```
+
+OR 
+
+Use "test" from the main menu of the CLI.
+
+Add tests for:
+- Data validation and cleaning logic
+- Feature engineering transformations
+- Model training and prediction workflows
+- Configuration loading and validation
+
+## Model Management
+
+Trained models are saved to `models/` with timestamps. Keep `models/latest_model.pkl` as a symlink to the most recent model for easy reference.
+
+Document model versions in `models/model_registry.json` with metadata:
+- Training date
+- Training data size
+- Performance metrics
+- Feature set version
