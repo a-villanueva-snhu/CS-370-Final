@@ -2,10 +2,9 @@
 # It handles user input and output, and provides a way to 
 # interact with the application.
 
-import sys
 import os
-import logs.logger as logger
-
+from logs import logger
+from src.tests.e2e_tester import TestLogger
 
 ## Starts the CLI to await user commands. This function will run in a loop until 
 # the user decides to exit.
@@ -13,7 +12,7 @@ def start_cli():
     print("Welcome to GaiaML CLI!")
     print("Type 'help' for a list of commands.")
     while True:
-    ## Handle user input and commands
+    ## Handle user input commands
 
         command = input("GaiaML> ")
         match command:
@@ -24,8 +23,69 @@ def start_cli():
             case "help":
                 print("Available commands:")
                 print("  help - Show this help message")
+                print("  test - Run tests for the project")
+                print("  config - Load configuration for the project")
+                print("  logs - Open the log folder")
+                print("  download - Download data from Gaia DR3 or NasaEA")
+                print("  preprocess - Preprocess the downloaded data")
+                print("  train - Train the model with the preprocessed data")
+                print("  evaluate - Evaluate the trained model")
+                print("  deploy - Deploy the trained model")
+                print("  visualize - Visualize the data and model results")
+
+
                 print("  exit/quit/q/e - Exit the CLI")
                 # Add more commands as needed
+
+            ## Testing, config and logging commands
+            case "test":
+                i = input("Enter the test to run | logger | cli | all | : ")
+                match i:
+                    case "logger":
+                        print("Running logger tests...")
+                        ## Uses the e2e_tester.py file to run the logger tests. 
+                        # This is a basic test to ensure that the logger is working 
+                        # correctly as well as the testing framework. 
+                        # It is not a comprehensive test of the logger, 
+                        # but it is a good starting point.
+                        logger_tester = TestLogger()
+                        logger_tester.test_log_info()
+                        logger_tester.test_log_warning()
+                        logger_tester.test_log_error()
+                        logger_tester.test_log_exception()
+                        # logger_tester.__exit__(None, None, None)      ## Broken?
+
+                        print("Logger tests complete.")
+
+                    case "cli":
+                        print("Running CLI tests...")
+
+                        # TODO: Add actual CLI tests here. For now, we will just print a message.
+                        print("The CLI is probably working, if you made it here.")
+
+                        print("CLI tests complete.")
+
+                    case "all":
+                        print("Running all tests...")
+                        # Call the function to run all tests here
+                        # e.g., run_all_tests()
+                        print("All tests complete.")
+                    case _:
+                        print(f"Unknown test: {i}. Please enter 'logger', 'cli', or 'all'.")
+
+            case "config":
+                print("Loading configuration...")
+                # Call the function to load configuration here
+                # e.g., load_configuration()
+                print("Configuration loaded.")
+
+            ## Opens the log folder in the file explorer. This is useful for quickly accessing log files.
+            case "logs":
+                print("Opening log folder...")
+                log_folder = os.path.join(os.getcwd(), "logs")
+                if not os.path.exists(log_folder):
+                    os.makedirs(log_folder)
+                os.startfile(log_folder)
 
             ## Data Downloading Commands
             case "download":
