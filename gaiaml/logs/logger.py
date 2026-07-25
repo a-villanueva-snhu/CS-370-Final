@@ -15,10 +15,10 @@ logger.setLevel(logging.INFO)
 logger.propagate = False
 
 ## Set the log directory and file path
-log_dir = os.path.join(os.path.dirname(__file__), '..', '..', 'logs')
-log_dir = os.path.normpath(log_dir)
+log_file = config_manager.get_config_value("logging.log_file_path", os.path.join(os.getcwd(), "logs", "gaiaml.log"))
+log_file = os.path.normpath(log_file)
+log_dir = os.path.dirname(log_file)
 os.makedirs(log_dir, exist_ok=True)
-log_file = os.path.join(log_dir, 'gaiaml.log')
 
 ## Set up the file and stream handlers
 file_handler = logging.FileHandler(log_file, mode='a', encoding='utf-8')
