@@ -5,11 +5,14 @@
 import os
 from logs import logger
 from src.tests.e2e_tester import TestLogger
+from config import config_manager
 
 ## Starts the CLI to await user commands. This function will run in a loop until 
 # the user decides to exit.
+#
+# Updated to use config_manager for configuration management and logging.
 def start_cli():
-    print("Welcome to GaiaML CLI!")
+    print(config_manager.get_config_value("welcome_message", "Error: Welcome message not found in config."))
     print("Type 'help' for a list of commands.")
     while True:
     ## Handle user input commands
@@ -67,17 +70,32 @@ def start_cli():
 
                     case "all":
                         print("Running all tests...")
-                        # Call the function to run all tests here
+                        # Call the function to run all automated tests here
                         # e.g., run_all_tests()
                         print("All tests complete.")
+
+                    case "menu":
+                        print("Returning to main menu...")
+                        break
+
                     case _:
                         print(f"Unknown test: {i}. Please enter 'logger', 'cli', or 'all'.")
 
             case "config":
-                print("Loading configuration...")
-                # Call the function to load configuration here
-                # e.g., load_configuration()
-                print("Configuration loaded.")
+                i = input("Enter the config command | load | open | : ")
+                match i:
+                    case "load":
+                        print("Loading configuration...")
+                        config = config_manager.load_config()
+                        print("Configuration loaded.")
+                    case "open":
+                        print("Opening configuration file...")
+                        config_manager.open_yaml()
+                    case "menu":
+                        print("Returning to main menu...")
+                        break
+                    case _:
+                        print(f"Unknown config command: {i}. Please enter 'load' or 'open'.")
 
             ## Opens the log folder in the file explorer. This is useful for quickly accessing log files.
             case "logs":
@@ -106,6 +124,9 @@ def start_cli():
                         print("Downloading test data with confirmed exoplanets...")
                         ## Call the function to download test data here
                         # e.g., download_test_data()
+                    case "menu":
+                        print("Returning to main menu...")
+                        break
                     case _:
                         print(f"Unknown data source: {command}. Please enter 'g' for Gaia DR3 or 'n' for NasaEA.")
 

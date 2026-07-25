@@ -40,3 +40,13 @@ to match user input strings to functional modules.
 ![CLI Flowchart](gaiaml/embeds/gaiaml_corepipeline.drawio.png)
 
 
+# Installation
+Prerequisites:
+- Python 3
+- 
+
+# User Guide
+
+Run main.py to launch the program.
+
+The CLI guides 
