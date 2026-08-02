@@ -3,9 +3,11 @@
 # interact with the application.
 
 import os
-from logs import logger
+from unittest import case
+import logs.logger as logger
 from src.tests.e2e_tester import TestLogger
 from config import config_manager
+from src.preprocessing import preprocessor
 # from src.utils import gaia_downloader  ## Moved to lazy load in command handling to avoid load time issues with sqlite and astroquery. These modules are not needed for the CLI to start, and can be loaded when needed.
 
 ## Starts the CLI to await user commands. This function will run in a loop until 
@@ -93,11 +95,40 @@ def start_cli():
                     case "open":
                         print("Opening configuration file...")
                         config_manager.open_yaml()
+                    case "edit":
+                        # Allow edits until the user decides to return to the main menu
+                        while True:
+                            # print config keys and values
+                            config = config_manager.load_config()
+
+                            for key, value in config.items():
+                                print(f"{key}: {value}")
+
+                            c = input("Enter the config key to edit (e.g., 'database_settings.database_file_path'): ")
+                            v = input(f"Enter the new value for '{c}': ")
+                            config_manager.edit_config(c, v)
+
+                            # sanity check
+                            config = config_manager.load_config()
+                            print("Updated configuration:")
+                            for key, value in config.items():
+                                print(f"{key}: {value}")
+
+                            print("'Back' to return to the main menu, or 'edit' to edit another config value.")
+                            choice = input("Enter your choice: ").strip().lower()
+                            if choice == "back":
+                                break
+                            elif choice == "edit":
+                                continue
+                            else:
+                                print("Unknown choice. Returning to main menu...")
+                                break
+
                     case "menu":
                         print("Returning to main menu...")
                         break
                     case _:
-                        print(f"Unknown config command: {i}. Please enter 'load' or 'open'.")
+                        print(f"Unknown config command: {i}. Please enter 'load', 'open', 'edit', or 'menu'.")
 
             ## Opens the log folder in the file explorer. This is useful for quickly accessing log files.
             case "logs":
@@ -141,9 +172,17 @@ def start_cli():
             ## Data Preprocessing Commands
             case "preprocess":
                 print("Preprocessing data...")
+                from data.database.sqlite import db
                 import src.preprocessing.preprocessor as preprocessor
+                # import pandas as pd
+
                 print("Preprocessing Gaia data...")
-                preprocessor.preprocess_gaia_data(db.fetch_data("gaia_data", -1, as_dataframe=True))  # Fetch data from the database
+                df = db.fetch_data("gaia_dr3_data", -1, as_dataframe=True)
+                if df.empty:
+                    logger.log_warning("gaia_dr3_data is empty. Falling back to test_data for preprocessing.")
+                    df = db.fetch_data("test_data", -1, as_dataframe=True)
+
+                preprocessor.preprocess_gaia_data(df)
                 print("Preprocessing complete.")
 
             ## Model Training Commands
@@ -151,10 +190,11 @@ def start_cli():
                 logger.log_info("Starting model training...")
                 from src.training import xgboost_trainer
                 from data.database.sqlite import db
+                from src.preprocessing import preprocessor
 
                 logger.log_info("preprocessing data for training...")
                 df = db.fetch_data("test_data", as_dataframe=True)  # Fetch data from the database
-                X, y = xgboost_trainer.preprocess_data(df)  # Replace 'df' with your actual DataFrame
+                X, y = preprocessor.preprocess_gaia_data(df)  # Replace 'df' with your actual DataFrame
 
                 xgboost_trainer.train_xgboost_model(X, y)
 
@@ -176,6 +216,16 @@ def start_cli():
                 # Call the function to deploy the model here
                 # e.g., deploy_model()
                 print("Model deployment complete.")
+
+            case "settings":
+                print("Opening settings...")
+                c = input("Enter the settings command | regen | : ")
+                match c:
+                    case "regen":
+                        table_name = input("Which table would you like to regenerate? (gaia_dr3_data, nasaea_data, test_data, model_versioning): ")
+                        from data.database.sqlite.db import regenerate_table
+                        regenerate_table(table_name)
+                
 
             ## Visualization Commands
             case "visualize":

@@ -4,7 +4,7 @@
 
 import pandas as pd
 from data.database.sqlite import db as db
-from logs import logger
+import logs.logger as logger
 
 
 ## -- Preprocess Gaia Data -- ##

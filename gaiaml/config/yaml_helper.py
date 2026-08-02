@@ -26,6 +26,18 @@ def check_yaml():
         print(f"Error in YAML file {file_path}: {e}")
         return False
 
+def edit_yaml(key, value):
+    """
+    Edits a specific configuration setting in the YAML file.
+    Args:
+        key (str): The configuration key to edit.
+        value: The new value for the configuration key.
+    """
+    config = load_yaml()
+    config[key] = value
+    with open(file_path, 'w', encoding='utf-8') as f:
+        yaml.dump(config, f, default_flow_style=False)
+
 def get_requirements():
     with open(requirements_path, 'r', encoding='utf-8') as f:
         return f.read().splitlines()
@@ -33,26 +45,3 @@ def get_requirements():
 def get_config_value(key, default=None):
     config = load_yaml()
     return config.get(key, default)
-
-def generate_default_yaml():
-    default_config = {
-        "logging": {
-            "log_file_path": os.path.join(os.getcwd(), "logs", "gaiaml.log"),
-            "log_level": "INFO"
-        },
-        "welcome_message": "Welcome to GaiaML! Type 'help' for a list of commands.",
-        "requirements_path": requirements_path,
-        "data_sources": {
-            "gaia_dr3": {
-                "url": "https://gea.esac.esa.int/archive/",
-                "local_path": os.path.join(os.getcwd(), "data", "gaia_dr3")
-            }
-        },
-        "database_settings": {
-            "database_file_path": os.path.join(os.getcwd(), "gaiaml.db")
-        },
-        
-        
-    }
-    with open(file_path, 'w', encoding='utf-8') as f:
-        yaml.dump(default_config, f, default_flow_style=False)

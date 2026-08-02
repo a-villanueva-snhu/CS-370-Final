@@ -5,7 +5,7 @@
 
 # from cli import cli
 from data.database.sqlite import db as db
-from logs import logger
+import logs.logger as logger
 from config import config_manager
 
 

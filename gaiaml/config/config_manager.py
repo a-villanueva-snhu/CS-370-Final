@@ -33,6 +33,32 @@ def load_config():
     """
     return yaml_helper.load_yaml()
 
+def edit_config(key, value):
+    """
+    Edits a specific configuration setting in the YAML file.
+    Args:
+        key (str): The configuration key to edit.
+        value: The new value for the configuration key.
+    """
+    # if the key is the project name, do not allow edits
+    if key == "project_name":
+        print("Editing the project name is not allowed.")
+        return
+
+    # if the key is nested (e.g., "logging.log_level"), we need to handle that
+    if '.' in key:
+        keys = key.split('.')
+        config = load_config()
+        d = config
+        for k in keys[:-1]:
+            d = d.setdefault(k, {})
+        d[keys[-1]] = value
+        with open(os.path.join(_PROJECT_ROOT, 'config', 'config.yaml'), 'w', encoding='utf-8') as f:
+            import yaml
+            yaml.dump(config, f, default_flow_style=False)
+
+    yaml_helper.edit_yaml(key, value)
+
 def get_config_value(key, default=None):
     """
     Retrieves a configuration value from the loaded configuration dictionary.
@@ -87,7 +113,11 @@ def get_next_model_version():
     """
     Returns the next patch version for the model_versioning table.
     """
-    conn = sqlite3.connect(get_config_value('database_settings.database_file_path', os.path.join(_PROJECT_ROOT, 'gaiaml.db')))
+    db_path = get_config_value('database_settings.database_file_path', os.path.join(_PROJECT_ROOT, 'gaiaml.db'))
+    if not isinstance(db_path, str):
+        db_path = os.path.join(_PROJECT_ROOT, 'gaiaml.db')
+
+    conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
 
     cursor.execute("SELECT version FROM model_versioning ORDER BY rowid DESC LIMIT 1")
@@ -104,8 +134,33 @@ def get_next_model_version():
     major, minor, patch = map(int, version_parts)
     return f"{major}.{minor}.{patch + 1}"
 
-def generate_default_yaml():
+def generate_default_yaml() -> bool:
     """
     Generates a default configuration YAML file if it does not exist.
     """
-    yaml_helper.generate_default_yaml()
+    default_config = {
+            "logging": {
+                "log_file_path": os.path.join(os.getcwd(), "logs", "gaiaml.log"),
+                "log_level": "INFO"
+            },
+            "welcome_message": "Welcome to GaiaML! Type 'help' for a list of commands.",
+            "requirements_path": os.path.join(os.getcwd(), "config", "requirements.txt"),
+            "data_sources": {
+                "gaia_dr3": {
+                    "url": "https://gea.esac.esa.int/archive/",
+                    "local_path": os.path.join(os.getcwd(), "data", "gaia_dr3")
+                }
+            },
+            "database_settings": {
+                "database_file_path": os.path.join(os.getcwd(), "gaiaml.db")
+            }
+    }
+    try:
+        with open(os.path.join(_PROJECT_ROOT, 'config', 'config.yaml'), 'w', encoding='utf-8') as f:
+            import yaml
+            yaml.dump(default_config, f, default_flow_style=False)
+        return True
+    except Exception as e:
+        print(f"Failed to generate default YAML: {e}")
+        return False
+        

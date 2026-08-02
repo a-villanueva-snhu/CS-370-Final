@@ -10,8 +10,7 @@ import numpy as np
 import pandas as pd
 from sklearn.model_selection import train_test_split
 from config import config_manager
-from logs import logger
-from preprocessing.preprocessor import preprocess_data
+import logs.logger as logger
 
 
 ## -- TRAINING FUNCTION -- ##
@@ -59,17 +58,51 @@ def train_xgboost_model(X, y, model_params=None, test_size=0.2, random_state=42)
     # Train the model
     model = xgb.train(model_params, dtrain)
 
+    ## Predictions for internal validation (optional)
+    dtest = xgb.DMatrix(X_test)
+
+    # F1 Score, Accuracy, Precision, Recall can be calculated here if needed for internal validation
+    y_pred = model.predict(dtest)
+    y_pred_binary = (y_pred > 0.5).astype(int) if 'binary:logistic' in model_params['objective'] else y_pred
+
+    # Calculate internal validation metrics if needed
+    from sklearn.metrics import f1_score, accuracy_score, precision_score, recall_score
+    if 'binary:logistic' in model_params['objective']:
+        f1 = f1_score(y_test, y_pred_binary)
+        accuracy = accuracy_score(y_test, y_pred_binary)
+        precision = precision_score(y_test, y_pred_binary)
+        recall = recall_score(y_test, y_pred_binary)
+    else:
+        f1 = accuracy = precision = recall = None
+
+
     # Export to JSON for the database versioning system
     model_version = config_manager.get_next_model_version()
-    model.save_model("xgboost_model.json")
 
+    # formatted model version string for json filename export
+    jstring = f"gaiaml/src/models/xgboost_model_v{model_version.replace('.', '_')}.json"
+
+    # check that the directory exists
+    import os
+    try:
+        if not os.path.exists(os.path.dirname(jstring)):
+            os.makedirs(os.path.dirname(jstring))
+    except Exception as e:
+        logger.log_error(f"Failed to create directory for model JSON: {e}")
+        raise
+
+    # Save the model to a JSON file
+    model.save_model(jstring)  # Save the model to a JSON file
+
+    
     db.save_model_version_json(
         version=model_version,
         date_created=config_manager.get_current_date(),
-        accuracy=None,  # Replace with actual accuracy if available
-        precision=None,  # Replace with actual precision if available
-        recall=None,  # Replace with actual recall if available
-        model_json="xgboost_model.json"
+        f1=f1,
+        accuracy=accuracy,
+        precision=precision,
+        recall=recall,
+        model_json=jstring
     )
 
     return model, X_test, y_test
