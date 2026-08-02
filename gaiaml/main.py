@@ -9,7 +9,6 @@ from logs import logger
 from config import config_manager
 
 
-
 def main():
     # Initialize the database
     logger.log_info("Starting GaiaML...")

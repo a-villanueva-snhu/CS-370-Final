@@ -147,6 +147,16 @@ def start_cli():
 
             ## Model Training Commands
             case "train":
+                logger.log_info("Starting model training...")
+                from src.training import xgboost_trainer
+                from data.database.sqlite import db
+
+                logger.log_info("preprocessing data for training...")
+                df = db.fetch_data("test_data", as_dataframe=True)  # Fetch data from the database
+                X, y = xgboost_trainer.preprocess_data(df)  # Replace 'df' with your actual DataFrame
+
+                xgboost_trainer.train_xgboost_model(X, y)
+
                 print("Training model...")
                 # Call the function to train the model here
                 # e.g., train_model()

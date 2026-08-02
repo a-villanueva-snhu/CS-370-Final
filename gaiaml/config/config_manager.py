@@ -4,6 +4,7 @@
 
 
 from config import yaml_helper
+import sqlite3
 
 def check_yaml():
     """
@@ -43,3 +44,31 @@ def check_version_database(key, version):
     """
     pass
 
+def get_current_date():
+    """
+    Returns the current date in YYYY-MM-DD format.
+    """
+    from datetime import datetime
+    return datetime.now().strftime("%Y-%m-%d")
+
+
+def get_next_model_version():
+    """
+    Returns the next patch version for the model_versioning table.
+    """
+    conn = sqlite3.connect('gaiaml.db')
+    cursor = conn.cursor()
+
+    cursor.execute("SELECT version FROM model_versioning ORDER BY rowid DESC LIMIT 1")
+    row = cursor.fetchone()
+    conn.close()
+
+    if row is None or not row[0]:
+        return "0.0.1"
+
+    version_parts = row[0].split('.')
+    if len(version_parts) != 3 or not all(part.isdigit() for part in version_parts):
+        return "0.0.1"
+
+    major, minor, patch = map(int, version_parts)
+    return f"{major}.{minor}.{patch + 1}"

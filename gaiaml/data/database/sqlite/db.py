@@ -4,6 +4,7 @@
 # retrieve data from the database.
 
 import sqlite3
+import pandas as pd
 from logs import logger
 import src.utils.crud_helper as crud
 
@@ -67,8 +68,14 @@ def initialize_database():
             'date_created TEXT',
             'accuracy REAL',
             'precision REAL',
-            'recall REAL'
+            'recall REAL',
+            'model_json TEXT'  # Store the model as a JSON string for simplicity
         ])
+    else:
+        cursor.execute("PRAGMA table_info(model_versioning)")
+        model_versioning_columns = {row[1] for row in cursor.fetchall()}
+        if 'model_json' not in model_versioning_columns:
+            cursor.execute("ALTER TABLE model_versioning ADD COLUMN model_json TEXT")
 
     ## Create a test table 
     if not crud.table_exists(cursor, 'test_table'):
@@ -131,25 +138,25 @@ def is_database_initialized():
 # parameters:
 # - table_name: Name of the table to fetch data from
 # - limit: Number of rows to fetch (default is 10)
-def fetch_data(table_name, limit=10):
+def fetch_data(table_name, limit=10, as_dataframe=False):
     """
     Fetch data from the database.
 
     :param table_name: Name of the table to fetch data from
     :param limit: Number of rows to fetch (default is 10)
-    :return: List of tuples containing the fetched data
+    :param as_dataframe: When True, return a pandas DataFrame
+    :return: List of tuples containing the fetched data or a pandas DataFrame
     """
     conn = sqlite3.connect('gaiaml.db')
-    cursor = conn.cursor()
-
-    # Create the SQL query to fetch data
     query = f"SELECT * FROM {table_name} LIMIT {limit}"
 
-    # Execute the query and fetch the data
-    cursor.execute(query)
-    data = cursor.fetchall()
+    if as_dataframe:
+        data = pd.read_sql_query(query, conn)
+    else:
+        cursor = conn.cursor()
+        cursor.execute(query)
+        data = cursor.fetchall()
 
-    # Close the connection
     conn.close()
 
     return data
@@ -384,3 +391,43 @@ def trim_gaia_data(data):
     trimmed_data = data[relevant_columns]
 
     return trimmed_data
+
+def save_model_version_json(version, date_created, accuracy, precision, recall, model_json):
+    """
+    Save the model version information to the 'model_versioning' table in the database.
+
+    :param version: Version identifier for the model
+    :param date_created: Date when the model was created
+    :param accuracy: Accuracy of the model
+    :param precision: Precision of the model
+    :param recall: Recall of the model
+    :param model_json: JSON string representation of the model
+    """
+    conn = sqlite3.connect('gaiaml.db')
+    cursor = conn.cursor()
+
+    cursor.execute("PRAGMA table_info(model_versioning)")
+    available_columns = {row[1] for row in cursor.fetchall()}
+
+    if 'model_json' in available_columns:
+        query = f"""
+            INSERT INTO model_versioning (version, date_created, accuracy, precision, recall, model_json)
+            VALUES (?, ?, ?, ?, ?, ?)
+        """
+        parameters = (version, date_created, accuracy, precision, recall, model_json)
+    else:
+        logger.log_warning(
+            "model_versioning is missing the 'model_json' column. Saving version metadata without the model path."
+        )
+        query = f"""
+            INSERT INTO model_versioning (version, date_created, accuracy, precision, recall)
+            VALUES (?, ?, ?, ?, ?)
+        """
+        parameters = (version, date_created, accuracy, precision, recall)
+
+    # Execute the query and commit the changes
+    cursor.execute(query, parameters)
+    conn.commit()
+
+    # Close the connection
+    conn.close()
