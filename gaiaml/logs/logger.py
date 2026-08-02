@@ -5,6 +5,8 @@ import os
 from config import config_manager
 
 _TEST = True  # Set to False in production
+_DO_LOG = True  # Set to False to disable logging
+_DO_CONSOLE_LOG = True  # Set to False to disable console logging
 
 # Configure from config.yaml if it exists
 
@@ -28,8 +30,10 @@ file_handler.setFormatter(formatter)
 stream_handler.setFormatter(formatter)
 
 ## Add the handlers to the logger
-logger.addHandler(file_handler)
-logger.addHandler(stream_handler)
+if _DO_LOG:
+    logger.addHandler(file_handler)
+if _DO_CONSOLE_LOG:
+    logger.addHandler(stream_handler)
 
 def __exit__(self, exc_type, exc_value, traceback):
     # Clean up the logger handlers when the program exits
@@ -41,18 +45,22 @@ def __exit__(self, exc_type, exc_value, traceback):
 ## API functions for using this file as a logger
 def log_info(message):
     logger.info(message)
+    # print(f"[INFO] {message}")  # Print to console for immediate feedback
 
 
 def log_warning(message):
     logger.warning(message)
+    # print(f"[WARNING] {message}")  # Print to console for immediate feedback
 
 
 def log_error(message):
     logger.error(message)
+    # print(f"[ERROR] {message}")  # Print to console for immediate feedback
 
 
 def log_exception(message):
     logger.exception(message)
+    # print(f"[EXCEPTION] {message}")  # Print to console for immediate feedback
 
 ## Test the logger
 def internal_test_logger():

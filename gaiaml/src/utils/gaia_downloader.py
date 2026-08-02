@@ -1,70 +1,87 @@
 # A simple downloader for fetching Gaia DR3 data from 
-# ESA's Gaia Archive.
+# ESA's Gaia Archive using native astroquery capabilities.
 
-import astroquery
+import sqlite3
 from astroquery.gaia import Gaia
-
+from logs import logger
 
 def download_gaia_dr3_data():
     """
-    Downloads Gaia DR3 data from ESA's Gaia Archive.
-    This function uses the astroquery library to fetch the data.
+    Downloads Gaia DR3 data from ESA's Gaia Archive natively.
     """
-
-    # Define the query to fetch Gaia DR3 data 
-    # Downloads a random smaple of 1000 rows from the Gaia DR3 source table.
     query = """
-    SELECT TOP 1000 *
+    SELECT TOP 100 *
     FROM gaiadr3.gaia_source
     """
 
-    # Execute the query and download the data
-    job = Gaia.launch_job(query)
-    results = job.get_results()
+    logger.log_info("Starting Gaia DR3 data download...")
 
-    # Save the results to a CSV file
-    ## TODO: Replace this with the sqlite database storage method once implemented.
-    results.write("gaia_dr3_data.csv", format="csv", overwrite=True)
+    try:
+        # NATIVE: Use launch_job_async to prevent server-side timeouts
+        job = Gaia.launch_job_async(query)
+        
+        # NATIVE: get_results() returns an Astropy Table object
+        results = job.get_results()
 
-    cleanup_conn()  # Clean up the connection to the Gaia Archive after downloading data
+        # NATIVE DATABASE STORAGE: 
+        # Convert Astropy Table to a Pandas DataFrame and use built-in SQL handling
+        df = results.to_pandas()
+        
+        # Insert natively into SQLite (replaces custom db handler)
+        with sqlite3.connect('gaia_data.db') as conn:
+            df.to_sql('gaia_dr3_data', conn, if_exists='append', index=False)
+            
+        logger.log_info("Gaia DR3 data downloaded and inserted into the database.")
+
+        # NATIVE CSV STORAGE ALTERNATIVE:
+        # If your goal was just to fetch a CSV file directly without memory overhead, 
+        # astroquery can bypass python entirely natively:
+        # Gaia.launch_job_async(query, dump_to_file=True, output_format='csv', output_file='gaia_dr3_data.csv')
+
+    except Exception as e:
+        logger.log_error(f"Error fetching/inserting Gaia DR3 data: {e}")
+
 
 def download_test_data():
     """
-    Downloads a small test dataset with confirmed exoplanets from Gaia DR3.
-    This function is intended for testing purposes and uses a predefined query.
+    Downloads a small test dataset to see the Gaia DR3 data structure and test the database insertion.
     """
-
-    # Define the query to fetch a small test dataset
-    #
-    # Accesses the vari_planetary_transit table to get a small sample of stars with confirmed exoplanets.
-    #
-    ## phot_g_mean_mag < 15 and parallax > 10 are arbitrary filters to get a small sample of stars.
     query = """
-    SELECT TOP 100 *
-    FROM gaiadr3.vari_planetary_transit
-    WHERE source_id IN (
-        SELECT source_id
-        FROM gaiadr3.gaia_source
-        WHERE phot_g_mean_mag < 15
-        AND parallax > 10
-    )
+    SELECT TOP 10
+        gs.source_id,
+        gs.ra,
+        gs.dec,
+        gs.parallax,
+        gs.phot_g_mean_mag,
+        gs.phot_bp_mean_mag,
+        gs.phot_rp_mean_mag
+    FROM gaiadr3.vari_planetary_transit AS vpt
+    JOIN gaiadr3.gaia_source AS gs
+        ON vpt.source_id = gs.source_id
     """
 
-    # Execute the query and download the data
-    job = Gaia.launch_job(query)
-    results = job.get_results()
+    logger.log_info("Downloading test data with confirmed exoplanets from Gaia DR3...")
 
-    # Save the results to a CSV file
-    ## TODO: Replace this with the sqlite database storage method once implemented.
-    results.write("gaia_test_data.csv", format="csv", overwrite=True)
+    try:
+        # NATIVE: Async execution
+        job = Gaia.launch_job_async(query)
+        results = job.get_results()
+        
+        # NATIVE COLUMN TRIMMING:
+        # The ADQL query above already restricts the columns natively, but if you need to 
+        # filter a larger result set programmatically in Python, use Astropy's native column indexing:
+        model_relevant_cols = [
+            'source_id', 'ra', 'dec', 'parallax', 'phot_g_mean_mag', 
+            'phot_bp_mean_mag', 'phot_rp_mean_mag'
+        ]
+        results = results[model_relevant_cols] 
 
-    cleanup_conn()  # Clean up the connection to the Gaia Archive after downloading test data
-
-def cleanup_conn():
-    """
-    Cleans up the connection to the Gaia Archive.
-    This function should be called after all data downloads are complete.
-    """
-
-    # Close the connection to the Gaia Archive
-    Gaia.close()
+        # NATIVE DATABASE STORAGE:
+        df = results.to_pandas()
+        with sqlite3.connect('gaia_data.db') as conn:
+            df.to_sql('test_data', conn, if_exists='replace', index=False)
+            
+        logger.log_info("Test data downloaded and inserted into the database.")
+        
+    except Exception as e:
+        logger.log_error(f"Error downloading test data from Gaia DR3: {e}")

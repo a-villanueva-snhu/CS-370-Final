@@ -5,6 +5,14 @@
 
 from config import yaml_helper
 
+def check_yaml():
+    """
+    Checks if the YAML configuration file exists and is valid.
+    Returns:
+        bool: True if the YAML file exists and is valid, False otherwise.
+    """
+    return yaml_helper.check_yaml()
+
 def open_yaml():
     """ Opens the config.yaml file in the default text editor. """
     yaml_helper.open_yaml_dir()

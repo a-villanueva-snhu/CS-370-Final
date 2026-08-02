@@ -31,3 +31,18 @@ def print_tables(cursor):
     cursor.execute("SELECT name FROM sqlite_master WHERE type='table';")
     tables = cursor.fetchall()
     print(tables)
+
+# Checks if a table exists in the database
+# Parameters:
+# - cursor: SQLite cursor object
+# - table_name: Name of the table to check
+def table_exists(cursor, table_name):
+    """
+    Check if a table exists in the database.
+
+    :param cursor: SQLite cursor object
+    :param table_name: Name of the table to check
+    :return: True if the table exists, False otherwise
+    """
+    cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name=?;", (table_name,))
+    return cursor.fetchone() is not None

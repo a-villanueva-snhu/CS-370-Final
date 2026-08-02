@@ -1,9 +1,7 @@
 ## The Core model for the GaiaML project. 
-# It contains the main logic for the project, including the
-# training and evaluation of the model. It is used by the 
-# other files in the project to run the model and make 
-# predictions. It is also used to save and load the 
-# model from the versioning database.
+# Takes a trained model and uses it to make predictions on new data.
+# It is used by the other files in the project to make predictions on new data.
+
 
 import xgboost as xgb
 import numpy as np

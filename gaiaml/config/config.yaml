@@ -22,4 +22,6 @@ logging:
 
 ## GaiaML Constants
 welcome_message: "Welcome to GaiaML!"
+
+
 boosting_round_num: 100       # The number of boosting rounds for the model training.

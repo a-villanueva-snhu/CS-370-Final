@@ -2,3 +2,8 @@
 # machine learning models. This includes cleaning, 
 # normalization, and feature engineering.
 
+import pandas as pd
+from data.database.sqlite import db as db
+
+
+## -- Preprocess Gaia Data -- ##

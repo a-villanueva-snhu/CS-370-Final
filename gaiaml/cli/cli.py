@@ -6,12 +6,14 @@ import os
 from logs import logger
 from src.tests.e2e_tester import TestLogger
 from config import config_manager
+# from src.utils import gaia_downloader  ## Moved to lazy load in command handling to avoid load time issues with sqlite and astroquery. These modules are not needed for the CLI to start, and can be loaded when needed.
 
 ## Starts the CLI to await user commands. This function will run in a loop until 
 # the user decides to exit.
 #
 # Updated to use config_manager for configuration management and logging.
 def start_cli():
+    
     print(config_manager.get_config_value("welcome_message", "Error: Welcome message not found in config."))
     print("Type 'help' for a list of commands.")
     while True:
@@ -107,23 +109,29 @@ def start_cli():
 
             ## Data Downloading Commands
             case "download":
+                logger.log_info("Initializing GaiaDownloader, please wait...")
+                import src.utils.gaia_downloader as gaia_downloader
+
                 command = input("Enter the data source to download (g= Gaia DR3; n = NasaEA): ")
 
                 match command:
-                    case "g":
+                    case "g" | "gaia" | "gaia_dr3":
                         print("Downloading Gaia DR3 data...")
+
                         # Call the function to download Gaia DR3 data here
-                        # e.g., download_gaia_dr3_data()
+                        # For now, just download a small sample of Gaia DR3 data using the gaia_downloader module
+                        gaia_downloader.download_gaia_dr3_data()
                         print("Download complete.")
-                    case "n":
+                    case "n" | "nasa" | "nasaea":
                         print("Downloading NasaEA data...")
                         # Call the function to download NasaEA data here
                         # e.g., download_nasaea_data()
                         print("Download complete.")
                     case "test":
-                        print("Downloading test data with confirmed exoplanets...")
+                        print("Downloading test data...")
                         ## Call the function to download test data here
-                        # e.g., download_test_data()
+                        gaia_downloader.download_test_data()
+                        print("Test data download complete.")
                     case "menu":
                         print("Returning to main menu...")
                         break
