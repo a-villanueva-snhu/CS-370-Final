@@ -47,7 +47,11 @@ def generate_default_yaml():
                 "url": "https://gea.esac.esa.int/archive/",
                 "local_path": os.path.join(os.getcwd(), "data", "gaia_dr3")
             }
-        }
+        },
+        "database_settings": {
+            "database_file_path": os.path.join(os.getcwd(), "gaiaml.db")
+        },
+        
         
     }
     with open(file_path, 'w', encoding='utf-8') as f:

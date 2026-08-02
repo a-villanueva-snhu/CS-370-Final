@@ -4,7 +4,11 @@
 
 
 from config import yaml_helper
+import os
 import sqlite3
+
+
+_PROJECT_ROOT = os.path.dirname(os.path.dirname(__file__))
 
 def check_yaml():
     """
@@ -35,7 +39,34 @@ def get_config_value(key, default=None):
     If the key does not exist, it returns the specified default value.
     """
     config = load_config()
-    return config.get(key, default)
+    value = config
+
+    if key in config:
+        value = config[key]
+    else:
+        for part in key.split('.'):
+            if isinstance(value, dict) and part in value:
+                value = value[part]
+            else:
+                value = default
+                break
+
+    if isinstance(value, dict) and isinstance(default, str) and default in value:
+        value = value[default]
+
+    path_key = key.split('.')[-1]
+    if isinstance(default, str) and default.endswith('_path'):
+        path_key = default
+
+    if isinstance(value, str) and path_key.endswith('_path'):
+        if value.startswith(("/", "\\")):
+            value = os.path.join(_PROJECT_ROOT, value.lstrip("/\\"))
+        value = os.path.normpath(value)
+
+        if key in ('database_settings.database_file_path', 'database_settings'):
+            os.makedirs(os.path.dirname(value), exist_ok=True)
+
+    return value
 
 def check_version_database(key, version):
     """
@@ -56,7 +87,7 @@ def get_next_model_version():
     """
     Returns the next patch version for the model_versioning table.
     """
-    conn = sqlite3.connect('gaiaml.db')
+    conn = sqlite3.connect(get_config_value('database_settings.database_file_path', os.path.join(_PROJECT_ROOT, 'gaiaml.db')))
     cursor = conn.cursor()
 
     cursor.execute("SELECT version FROM model_versioning ORDER BY rowid DESC LIMIT 1")
@@ -72,3 +103,9 @@ def get_next_model_version():
 
     major, minor, patch = map(int, version_parts)
     return f"{major}.{minor}.{patch + 1}"
+
+def generate_default_yaml():
+    """
+    Generates a default configuration YAML file if it does not exist.
+    """
+    yaml_helper.generate_default_yaml()

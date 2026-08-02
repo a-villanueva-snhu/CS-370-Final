@@ -141,8 +141,9 @@ def start_cli():
             ## Data Preprocessing Commands
             case "preprocess":
                 print("Preprocessing data...")
-                # Call the function to preprocess data here
-                # e.g., preprocess_data()
+                import src.preprocessing.preprocessor as preprocessor
+                print("Preprocessing Gaia data...")
+                preprocessor.preprocess_gaia_data(db.fetch_data("gaia_data", -1, as_dataframe=True))  # Fetch data from the database
                 print("Preprocessing complete.")
 
             ## Model Training Commands

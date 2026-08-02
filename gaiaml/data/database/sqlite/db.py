@@ -7,6 +7,7 @@ import sqlite3
 import pandas as pd
 from logs import logger
 import src.utils.crud_helper as crud
+from config import config_manager
 
 def initialize_database():
     """
@@ -14,7 +15,7 @@ def initialize_database():
     This function should be called at the start of the application to ensure the database is ready for use.
     """
     # Setup the database connection and cursor
-    conn = sqlite3.connect('gaiaml.db')
+    conn = sqlite3.connect(config_manager.get_config_value('database_settings', 'database_file_path'))
     cursor = conn.cursor()
 
     logger.log_info("Database connection established.")
@@ -48,6 +49,7 @@ def initialize_database():
         ])
 
     # Gaia test data table schema
+    # Used to store a small sample of Gaia DR3 data which contains confirmed exoplanets and their host stars.
     # check if the table already exists before creating it
     if not crud.table_exists(cursor, 'test_data'):
         crud.create_table(cursor, 'test_data', [
@@ -99,7 +101,7 @@ def insert_data(table_name, data):
     :param table_name: Name of the table to insert data into
     :param data: List of tuples containing the data to insert
     """
-    conn = sqlite3.connect('gaiaml.db')
+    conn = sqlite3.connect(config_manager.get_config_value('database_settings', 'database_file_path'))
     cursor = conn.cursor()
 
     # Create a placeholder string for the number of columns in the data
@@ -121,7 +123,7 @@ def is_database_initialized():
 
     :return: True if the database is initialized, False otherwise
     """
-    conn = sqlite3.connect('gaiaml.db')
+    conn = sqlite3.connect(config_manager.get_config_value('database_settings', 'database_file_path'))
     cursor = conn.cursor()
 
     # Check for the existence of required tables
@@ -147,7 +149,7 @@ def fetch_data(table_name, limit=10, as_dataframe=False):
     :param as_dataframe: When True, return a pandas DataFrame
     :return: List of tuples containing the fetched data or a pandas DataFrame
     """
-    conn = sqlite3.connect('gaiaml.db')
+    conn = sqlite3.connect(config_manager.get_config_value('database_settings', 'database_file_path'))  
     query = f"SELECT * FROM {table_name} LIMIT {limit}"
 
     if as_dataframe:
@@ -169,7 +171,7 @@ def get_whole_table(table_name):
     :param table_name: Name of the table to fetch data from
     :return: List of tuples containing the fetched data
     """
-    conn = sqlite3.connect('gaiaml.db')
+    conn = sqlite3.connect(config_manager.get_config_value('database_settings', 'database_file_path'))
     cursor = conn.cursor()
 
     # Create the SQL query to fetch all data
@@ -191,7 +193,7 @@ def clean_null_and_invalid_data(table_name):
 
     :param table_name: Name of the table to clean data from
     """
-    conn = sqlite3.connect('gaiaml.db')
+    conn = sqlite3.connect(config_manager.get_config_value('database_settings', 'database_file_path'))
     cursor = conn.cursor()
 
     # Create the SQL query to delete rows with null or invalid values
@@ -211,7 +213,7 @@ def copy_table(source_table, destination_table):
     :param source_table: Name of the source table
     :param destination_table: Name of the destination table
     """
-    conn = sqlite3.connect('gaiaml.db')
+    conn = sqlite3.connect(config_manager.get_config_value('database_settings', 'database_file_path'))
     cursor = conn.cursor()
 
     # Create the SQL query to copy data from source_table to destination_table
@@ -230,7 +232,7 @@ def delete_table(table_name):
 
     :param table_name: Name of the table to delete
     """
-    conn = sqlite3.connect('gaiaml.db')
+    conn = sqlite3.connect(config_manager.get_config_value('database_settings', 'database_file_path'))
     cursor = conn.cursor()
 
     # Create the SQL query to delete the table
@@ -251,7 +253,7 @@ def update_table(table_name, set_clause, where_clause):
     :param set_clause: SET clause for the update query (e.g., "column1 = value1, column2 = value2")
     :param where_clause: WHERE clause for the update query (e.g., "id = 1")
     """
-    conn = sqlite3.connect('gaiaml.db')
+    conn = sqlite3.connect(config_manager.get_config_value('database_settings', 'database_file_path'))
     cursor = conn.cursor()
 
     # Create the SQL query to update data in the table
@@ -271,7 +273,7 @@ def delete_data(table_name, where_clause):
     :param table_name: Name of the table to delete data from
     :param where_clause: WHERE clause for the delete query (e.g., "id = 1")
     """
-    conn = sqlite3.connect('gaiaml.db')
+    conn = sqlite3.connect(config_manager.get_config_value('database_settings', 'database_file_path'))
     cursor = conn.cursor()
 
     # Create the SQL query to delete data from the table
@@ -291,7 +293,7 @@ def get_table_schema(table_name):
     :param table_name: Name of the table to get the schema for
     :return: List of tuples containing the column names and types
     """
-    conn = sqlite3.connect('gaiaml.db')
+    conn = sqlite3.connect(config_manager.get_config_value('database_settings', 'database_file_path'))
     cursor = conn.cursor()
 
     # Create the SQL query to get the table schema
@@ -312,7 +314,7 @@ def get_table_names():
 
     :return: List of table names
     """
-    conn = sqlite3.connect('gaiaml.db')
+    conn = sqlite3.connect(config_manager.get_config_value('database_settings', 'database_file_path'))
     cursor = conn.cursor()
 
     # Create the SQL query to get the table names
@@ -350,7 +352,7 @@ def normalize_table(table_name='gaia_dr3_data_cleaned'):
     Normalize the data in the specified table.
     This function normalizes the numerical columns in the table to a range of [0, 1].
     """
-    conn = sqlite3.connect('gaiaml.db')
+    conn = sqlite3.connect(config_manager.get_config_value('database_settings', 'database_file_path'))
     cursor = conn.cursor()
 
     # Get the schema of the cleaned table
@@ -403,7 +405,7 @@ def save_model_version_json(version, date_created, accuracy, precision, recall, 
     :param recall: Recall of the model
     :param model_json: JSON string representation of the model
     """
-    conn = sqlite3.connect('gaiaml.db')
+    conn = sqlite3.connect(config_manager.get_config_value('database_settings', 'database_file_path'))
     cursor = conn.cursor()
 
     cursor.execute("PRAGMA table_info(model_versioning)")
@@ -431,3 +433,35 @@ def save_model_version_json(version, date_created, accuracy, precision, recall, 
 
     # Close the connection
     conn.close()
+
+def load_model_from_versioning(version):
+    """
+    Load a model from the 'model_versioning' table in the database based on the specified version.
+
+    :param version: Version identifier for the model to load
+    :return: JSON string representation of the model or None if not found
+    """
+    conn = sqlite3.connect(config_manager.get_config_value('database_settings', 'database_file_path'))
+    cursor = conn.cursor()
+
+    cursor.execute("PRAGMA table_info(model_versioning)")
+    available_columns = {row[1] for row in cursor.fetchall()}
+
+    if 'model_json' not in available_columns:
+        logger.log_error(
+            "model_versioning is missing the 'model_json' column. Cannot load model."
+        )
+        conn.close()
+        return None
+
+    query = f"SELECT model_json FROM model_versioning WHERE version = ?"
+    cursor.execute(query, (version,))
+    result = cursor.fetchone()
+
+    conn.close()
+
+    if result:
+        return result[0]  # Return the model JSON string
+    else:
+        logger.log_warning(f"No model found for version {version}.")
+        return None

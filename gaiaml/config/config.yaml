@@ -13,12 +13,13 @@ database_settings:
   username: "gaia_user"
   password: "secure_password"
   database_name: "gaiaml_db"
+  database_type: "sqlite"  # Options: sqlite, postgresql, mysql
+  database_file_path: "/data/database/sqlite/gaiaml.db"  # Only used for sqlite
 
 logging:
   level: "INFO"
   log_file_path: "/logs/gaiaml.log"
   rt_log_file_path: "/logs/rt_log.log"
-
 
 ## GaiaML Constants
 welcome_message: "Welcome to GaiaML!"
