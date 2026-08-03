@@ -3,41 +3,58 @@
 # interact with the application.
 
 import os
-from unittest import case
+import shlex
 import logs.logger as logger
 from src.tests.e2e_tester import TestLogger
 from config import config_manager
 from src.preprocessing import preprocessor
 # from src.utils import gaia_downloader  ## Moved to lazy load in command handling to avoid load time issues with sqlite and astroquery. These modules are not needed for the CLI to start, and can be loaded when needed.
 
-## Starts the CLI to await user commands. This function will run in a loop until 
-# the user decides to exit.
-#
-# Updated to use config_manager for configuration management and logging.
-def start_cli():
-    
-    print(config_manager.get_config_value("welcome_message", "Error: Welcome message not found in config."))
-    print("Type 'help' for a list of commands.")
-    while True:
-    ## Handle user input commands
+def _parse_positive_int(value, default_value):
+    try:
+        parsed = int(value)
+        if parsed > 0:
+            return parsed
+    except (TypeError, ValueError):
+        pass
+    return default_value
 
-        command = input("GaiaML> ")
-        match command:
+
+def _execute_command(command_line):
+    if not command_line.strip():
+        return True
+
+    try:
+        parts = shlex.split(command_line)
+    except ValueError as e:
+        print(f"Invalid command syntax: {e}")
+        return True
+
+    if not parts:
+        return True
+
+    command = parts[0].lower()
+    args = parts[1:]
+
+    match command:
             ## General Commands
             case "exit" | "quit" | "q" | "e":
                 print("Exiting GaiaML CLI. Goodbye!")
-                break
+                return False
             case "help":
                 print("Available commands:")
                 print("  help - Show this help message")
                 print("  test - Run tests for the project")
                 print("  config - Load configuration for the project")
                 print("  logs - Open the log folder")
-                print("  download - Download data from Gaia DR3 or NasaEA")
+                print("  download [g|c|n] [count] - Download Gaia DR3, confirmed exoplanets, or NasaEA data")
                 print("  preprocess - Preprocess the downloaded data")
                 print("  train - Train the model with the preprocessed data")
                 print("  evaluate - Evaluate the trained model")
                 print("  deploy - Deploy the trained model")
+                print("  settings regen <table_name> - Regenerate a database table")
+                print("  Chained commands: use ';' between commands")
+                print("    Example: download g 200; download c 50; preprocess; train; deploy")
                 print("  visualize - Visualize the data and model results")
 
 
@@ -46,7 +63,7 @@ def start_cli():
 
             ## Testing, config and logging commands
             case "test":
-                i = input("Enter the test to run | logger | cli | all | : ")
+                i = args[0].lower() if args else input("Enter the test to run | logger | cli | all | : ").strip().lower()
                 match i:
                     case "logger":
                         print("Running logger tests...")
@@ -80,13 +97,13 @@ def start_cli():
 
                     case "menu":
                         print("Returning to main menu...")
-                        break
+                        return True
 
                     case _:
                         print(f"Unknown test: {i}. Please enter 'logger', 'cli', or 'all'.")
 
             case "config":
-                i = input("Enter the config command | load | open | : ")
+                i = args[0].lower() if args else input("Enter the config command | load | open | edit | : ").strip().lower()
                 match i:
                     case "load":
                         print("Loading configuration...")
@@ -126,7 +143,7 @@ def start_cli():
 
                     case "menu":
                         print("Returning to main menu...")
-                        break
+                        return True
                     case _:
                         print(f"Unknown config command: {i}. Please enter 'load', 'open', 'edit', or 'menu'.")
 
@@ -143,33 +160,34 @@ def start_cli():
                 logger.log_info("Initializing GaiaDownloader, please wait...")
                 import src.utils.gaia_downloader as gaia_downloader
 
-                command = input("Enter the data source to download (g= Gaia DR3; n = NasaEA): ")
+                source = args[0].lower() if args else input("Enter the data source to download (g= Gaia DR3 | c = Confirmed Exoplanets | n = NasaEA): ").strip().lower()
+                count = _parse_positive_int(args[1], 100) if len(args) > 1 else None
 
-                match command:
+                match source:
                     case "g" | "gaia" | "gaia_dr3":
                         logger.log_info("Downloading Gaia DR3 data...")
-                        # Call the function to download Gaia DR3 data here
-                        gaia_downloader.download_gaia_dr3_data()
+                        gaia_count = count if count is not None else _parse_positive_int(input("Row count for Gaia DR3 download (default 100): ").strip() or "100", 100)
+                        gaia_downloader.download_gaia_dr3_data(count=gaia_count)
                         logger.log_info("Download complete.")
                     case "n" | "nasa" | "nasaea":
                         logger.log_info("Downloading NasaEA data...")
                         # Call the function to download NasaEA data here
                         # e.g., download_nasaea_data()
                         logger.log_info("Download complete.")
-                    case "c" | "confirmed" | "confirmed_hosts":
-                        logger.log_info("Downloading test data...")
-                        ## Call the function to download test data here
-                        gaia_downloader.download_confirmed_exoplanets_data()
-                        logger.log_info("Test data download complete.")
+                    case "c" | "confirmed" | "confirmed_exoplanets":
+                        logger.log_info("Downloading confirmed exoplanets data...")
+                        confirmed_count = count if count is not None else _parse_positive_int(input("Row count for confirmed exoplanets download (default 10): ").strip() or "10", 10)
+                        gaia_downloader.download_confirmed_exoplanets_data(count=confirmed_count)
+                        logger.log_info("Confirmed exoplanets data download complete.")
                     case "menu":
                         print("Returning to main menu...")
-                        break
+                        return True
                     case _:
-                        print(f"Unknown data source: {command}. Please enter 'g' for Gaia DR3 or 'n' for NasaEA.")
+                        print(f"Unknown data source: {source}. Please enter 'g' for Gaia DR3, 'c' for Confirmed Exoplanets, or 'n' for NasaEA.")
 
             ## Data Preprocessing Commands
             case "preprocess":
-                print("Preprocessing data...")
+                logger.log_info("Starting data preprocessing...")
                 from data.database.sqlite import db
                 import src.preprocessing.preprocessor as preprocessor
                 # import pandas as pd
@@ -183,7 +201,7 @@ def start_cli():
 
 
                 print("Preprocessing confirmed exoplanets data...")
-                df_confirmed = db.fetch_data("confirmed_hosts", -1, as_dataframe=True)
+                df_confirmed = db.fetch_data("confirmed_exoplanets_data", -1, as_dataframe=True)
                 preprocessor.preprocess_confirmed_exoplanets_data(df_confirmed, target_column='is_confirmed_host')
 
                 print("Creating training dataset from Gaia DR3...")
@@ -220,17 +238,19 @@ def start_cli():
             ## Model Deployment Commands
             case "deploy":
                 print("Deploying model...")
-                # Call the function to deploy the model here
-                # e.g., deploy_model()
+                import src.models.run_model as run_model
+                print("Running model on new data...")
+                run_model.run_model()
                 print("Model deployment complete.")
 
             case "settings":
-                print("Opening settings...")
-                c = input("Enter the settings command | regen | : ")
+                c = args[0].lower() if args else input("Enter the settings command | regen | : ").strip().lower()
                 match c:
                     case "regen":
-                        table_name = input("Which table would you like to regenerate? "
-                        "(gaia_dr3_data, nasaea_data, test_data, model_versioning): ")
+                        table_name = args[1] if len(args) > 1 else input(
+                            "Which table would you like to regenerate? "
+                            "(gaia_dr3_data, nasaea_data, test_data, confirmed_exoplanets_data, model_versioning): "
+                        ).strip()
                         from data.database.sqlite.db import regenerate_table
                         regenerate_table(table_name)
                 
@@ -244,3 +264,28 @@ def start_cli():
 
             case _:
                 print(f"Unknown command: {command}. Type 'help' for a list of commands.")
+
+    return True
+
+
+## Starts the CLI to await user commands. This function will run in a loop until
+# the user decides to exit.
+#
+# Updated to use config_manager for configuration management and logging.
+def start_cli():
+
+    print(config_manager.get_config_value("welcome_message", "Error: Welcome message not found in config."))
+    print("Type 'help' for a list of commands.")
+    while True:
+        # Supports chained commands separated by ';'
+        command_line = input("GaiaML> ")
+        chained_commands = [cmd.strip() for cmd in command_line.split(';') if cmd.strip()]
+
+        should_continue = True
+        for chained_command in chained_commands:
+            should_continue = _execute_command(chained_command)
+            if not should_continue:
+                break
+
+        if not should_continue:
+            break

@@ -18,7 +18,7 @@ logger.propagate = False
 
 ## Set the log directory and file path
 log_file = config_manager.get_config_value("logging.log_file_path", os.path.join(os.getcwd(), "logs", "gaiaml.log"))
-log_file = os.path.normpath(log_file)
+log_file = os.path.normpath(str(log_file))
 log_dir = os.path.dirname(log_file)
 os.makedirs(log_dir, exist_ok=True)
 
@@ -44,6 +44,7 @@ def __exit__(self, exc_type, exc_value, traceback):
 
 ## API functions for using this file as a logger
 def log_info(message):
+    
     logger.info(message)
     # print(f"[INFO] {message}")  # Print to console for immediate feedback
 

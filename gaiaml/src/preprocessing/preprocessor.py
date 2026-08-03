@@ -10,6 +10,10 @@ import logs.logger as logger
 ## -- Preprocess Gaia Data -- ##
 ## Feature Selection and Preprocessing ##
 # TODO: edit to include feature engineering, normalization, and other preprocessing steps as needed.
+# FIXME: target column needs to only be included in the confirmed exoplanets data, not the Gaia DR3 data. 
+#   The Gaia DR3 data is unlabeled and should not have a target column. 
+#   The target column should be added to the confirmed exoplanets data 
+#   for supervised training.
 def preprocess_gaia_data(df, target_column='is_confirmed_host'):
     """
     Preprocesses the input DataFrame for model training.
@@ -142,9 +146,9 @@ def create_training_dataset_from_gaia_dr3():
     X_gaia, y_gaia = preprocess_gaia_data(df)
 
     # Fetch confirmed exoplanets data from the database
-    df_confirmed = db.fetch_data("confirmed_hosts", -1, as_dataframe=True)
+    df_confirmed = db.fetch_data("confirmed_exoplanets_data", -1, as_dataframe=True)
     if df_confirmed.empty:
-        logger.log_warning("confirmed_hosts is empty. No confirmed exoplanets data available for training.")
+        logger.log_warning("confirmed_exoplanets_data is empty. No confirmed exoplanets data available for training.")
         return X_gaia, y_gaia
 
     # Preprocess the confirmed exoplanets data

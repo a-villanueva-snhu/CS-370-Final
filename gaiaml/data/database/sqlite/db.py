@@ -7,6 +7,7 @@ import os
 import sqlite3
 from typing import Literal, overload
 import pandas as pd
+import numpy as np
 import logs.logger as logger
 import src.utils.crud_helper as crud
 from config import config_manager
@@ -14,6 +15,7 @@ from config import config_manager
 ## Database Schemas
 schemas = {
     'gaia_dr3_data': [
+        'is_confirmed_host INTEGER',
         'source_id INTEGER PRIMARY KEY',
         'ra REAL',
         'dec REAL',
@@ -29,12 +31,23 @@ schemas = {
         'dec REAL',
         'magnitude REAL'
     ],
-    'confirmed_hosts': [
+    'confirmed_exoplanets_data': [
         'id INTEGER PRIMARY KEY',
         'name TEXT',
         'ra REAL',
         'dec REAL',
-        'magnitude REAL'
+        'magnitude REAL',
+        'is_confirmed_host INTEGER',
+    ],
+    'preprocessed_training_data': [
+        'source_id INTEGER PRIMARY KEY',
+        'ra REAL',
+        'dec REAL',
+        'parallax REAL',
+        'phot_g_mean_mag REAL',
+        'phot_bp_mean_mag REAL',
+        'phot_rp_mean_mag REAL',
+        'is_confirmed_host INTEGER'
     ],
     'test_data': [
         'source_id INTEGER PRIMARY KEY',
@@ -43,7 +56,8 @@ schemas = {
         'parallax REAL',
         'phot_g_mean_mag REAL',
         'phot_bp_mean_mag REAL',
-        'phot_rp_mean_mag REAL'
+        'phot_rp_mean_mag REAL',
+        'is_confirmed_host INTEGER',
     ],
     'model_versioning': [
         'version TEXT PRIMARY KEY',
@@ -53,7 +67,17 @@ schemas = {
         'precision REAL',
         'recall REAL',
         'model_json TEXT'
-    ]
+    ],
+    'predictions': [
+        'id INTEGER PRIMARY KEY AUTOINCREMENT',
+        'source_id INTEGER',
+        'prediction REAL'
+    ],
+    'new_exoplanet_candidates': [
+        'id INTEGER PRIMARY KEY AUTOINCREMENT',
+        'source_id INTEGER',
+        'likelihood REAL'
+    ],
 }
 
 
@@ -87,14 +111,19 @@ def initialize_database():
     if not crud.table_exists(cursor, 'nasaea_data'):
         crud.create_table(cursor, 'nasaea_data', schemas['nasaea_data'])
 
-    if not crud.table_exists(cursor, 'confirmed_hosts'):
-        crud.create_table(cursor, 'confirmed_hosts', schemas['confirmed_hosts'])
+    if not crud.table_exists(cursor, 'confirmed_exoplanets_data'):
+        crud.create_table(cursor, 'confirmed_exoplanets_data', schemas['confirmed_exoplanets_data'])
 
     if not crud.table_exists(cursor, 'test_data'):
         crud.create_table(cursor, 'test_data', schemas['test_data'])
 
     if not crud.table_exists(cursor, 'model_versioning'):
         crud.create_table(cursor, 'model_versioning', schemas['model_versioning'])
+    if not crud.table_exists(cursor, 'predictions'):
+        crud.create_table(cursor, 'predictions', schemas['predictions'])
+    if not crud.table_exists(cursor, 'new_exoplanet_candidates'):
+        crud.create_table(cursor, 'new_exoplanet_candidates', schemas['new_exoplanet_candidates'])
+
     else:
         cursor.execute("PRAGMA table_info(model_versioning)")
         model_versioning_columns = {row[1] for row in cursor.fetchall()}
@@ -464,6 +493,16 @@ def load_model_from_versioning(version):
     return None
 
 
+def get_latest_model_version():
+    """Return the most recent model version or None if no versions exist."""
+    conn = sqlite3.connect(_get_database_path())
+    cursor = conn.cursor()
+    cursor.execute("SELECT version FROM model_versioning ORDER BY rowid DESC LIMIT 1")
+    row = cursor.fetchone()
+    conn.close()
+    return row[0] if row else None
+
+
 def store_predictions(table_name, predictions):
     """
     Store model predictions in the specified table in the database.
@@ -472,15 +511,28 @@ def store_predictions(table_name, predictions):
     :param predictions: List or array of predictions to store
     """
     conn = sqlite3.connect(_get_database_path())
-    cursor = conn.cursor()
 
-    if isinstance(predictions[0], (list, tuple)):
-        placeholders = ', '.join(['?'] * len(predictions[0]))
-        query = f"INSERT INTO {table_name} VALUES ({placeholders})"
-        cursor.executemany(query, predictions)
+    if table_name == "predictions":
+        if isinstance(predictions, pd.DataFrame):
+            if not {"source_id", "prediction"}.issubset(predictions.columns):
+                raise ValueError("predictions DataFrame must include 'source_id' and 'prediction' columns")
+            payload = predictions[["source_id", "prediction"]]
+            payload.to_sql("predictions", conn, if_exists="append", index=False)
+        else:
+            values = np.asarray(predictions).reshape(-1)
+            pd.DataFrame({"prediction": values}).to_sql("predictions", conn, if_exists="append", index=False)
+
+    elif table_name == "new_exoplanet_candidates":
+        if isinstance(predictions, pd.DataFrame):
+            if not {"source_id", "likelihood"}.issubset(predictions.columns):
+                raise ValueError("new_exoplanet_candidates DataFrame must include 'source_id' and 'likelihood' columns")
+            payload = predictions[["source_id", "likelihood"]]
+            payload.to_sql("new_exoplanet_candidates", conn, if_exists="append", index=False)
+        else:
+            raise ValueError("new_exoplanet_candidates storage requires a DataFrame with source_id and likelihood")
+
     else:
-        query = f"INSERT INTO {table_name} VALUES (?)"
-        cursor.executemany(query, [(p,) for p in predictions])
-        
+        raise ValueError(f"Unsupported predictions table: {table_name}")
+
     conn.commit()
     conn.close()

@@ -41,11 +41,10 @@ def main():
     from cli import cli
 
     try:
-        cli.start_cli()
+        cli.start_cli()  # Start the command line interface
     except Exception as e:
-        logger.log_error(f"Error starting CLI: {e}")
-        print("Error starting the CLI. Please check the logs for more details.")
-
+        logger.log_error(f"Error in CLI: {e}")
+        print("Error in CLI. Please check the logs for more details.")
 
 if __name__ == "__main__":
     main()  # Start the command line interface

@@ -28,12 +28,12 @@ def _table_has_rows(table_name):
     except sqlite3.Error:
         return False
 
-def download_gaia_dr3_data():
+def download_gaia_dr3_data(count=100, force_refresh=False):
     """
     Downloads Gaia DR3 data from ESA's Gaia Archive natively.
     """
-    query = """
-    SELECT TOP 100
+    query = f"""
+    SELECT TOP {count}
         source_id,
         ra,
         dec,
@@ -68,7 +68,7 @@ def download_gaia_dr3_data():
         with sqlite3.connect(_get_database_path()) as conn:
             df.to_sql('gaia_dr3_data', conn, if_exists='append', index=False)
             
-        logger.log_info(f"Gaia DR3 data downloaded and inserted into the database. Rows: {len(df)}")
+            logger.log_info(f"Gaia DR3 data downloaded and inserted into the database. Rows: {len(df)}")
 
         # NATIVE CSV STORAGE ALTERNATIVE:
         # If your goal was just to fetch a CSV file directly without memory overhead, 
