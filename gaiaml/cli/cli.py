@@ -147,22 +147,20 @@ def start_cli():
 
                 match command:
                     case "g" | "gaia" | "gaia_dr3":
-                        print("Downloading Gaia DR3 data...")
-
+                        logger.log_info("Downloading Gaia DR3 data...")
                         # Call the function to download Gaia DR3 data here
-                        # For now, just download a small sample of Gaia DR3 data using the gaia_downloader module
                         gaia_downloader.download_gaia_dr3_data()
-                        print("Download complete.")
+                        logger.log_info("Download complete.")
                     case "n" | "nasa" | "nasaea":
-                        print("Downloading NasaEA data...")
+                        logger.log_info("Downloading NasaEA data...")
                         # Call the function to download NasaEA data here
                         # e.g., download_nasaea_data()
-                        print("Download complete.")
-                    case "test":
-                        print("Downloading test data...")
+                        logger.log_info("Download complete.")
+                    case "c" | "confirmed" | "confirmed_hosts":
+                        logger.log_info("Downloading test data...")
                         ## Call the function to download test data here
-                        gaia_downloader.download_test_data()
-                        print("Test data download complete.")
+                        gaia_downloader.download_confirmed_exoplanets_data()
+                        logger.log_info("Test data download complete.")
                     case "menu":
                         print("Returning to main menu...")
                         break
@@ -181,8 +179,17 @@ def start_cli():
                 if df.empty:
                     logger.log_warning("gaia_dr3_data is empty. Falling back to test_data for preprocessing.")
                     df = db.fetch_data("test_data", -1, as_dataframe=True)
-
                 preprocessor.preprocess_gaia_data(df)
+
+
+                print("Preprocessing confirmed exoplanets data...")
+                df_confirmed = db.fetch_data("confirmed_hosts", -1, as_dataframe=True)
+                preprocessor.preprocess_confirmed_exoplanets_data(df_confirmed, target_column='is_confirmed_host')
+
+                print("Creating training dataset from Gaia DR3...")
+                from src.preprocessing.preprocessor import create_training_dataset_from_gaia_dr3
+                X_combined, y_combined = create_training_dataset_from_gaia_dr3()
+
                 print("Preprocessing complete.")
 
             ## Model Training Commands
@@ -222,7 +229,8 @@ def start_cli():
                 c = input("Enter the settings command | regen | : ")
                 match c:
                     case "regen":
-                        table_name = input("Which table would you like to regenerate? (gaia_dr3_data, nasaea_data, test_data, model_versioning): ")
+                        table_name = input("Which table would you like to regenerate? "
+                        "(gaia_dr3_data, nasaea_data, test_data, model_versioning): ")
                         from data.database.sqlite.db import regenerate_table
                         regenerate_table(table_name)
                 

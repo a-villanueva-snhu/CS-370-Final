@@ -56,6 +56,8 @@ def train_xgboost_model(X, y, model_params=None, test_size=0.2, random_state=42)
         }
 
     # Train the model
+    # TODO: Consider adding early stopping rounds and evaluation sets for better training control
+    # TODO: Consider adding tree-weighted cross-validation for hyperparameter tuning
     model = xgb.train(model_params, dtrain)
 
     ## Predictions for internal validation (optional)

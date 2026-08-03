@@ -17,7 +17,7 @@ def download_nasaea_data():
     service = pyvo.dal.TAPService(tap_url)
 
     ## Write ADL query
-    adl_query = """
+    adl_query = f"""
     SELECT TOP 10 pl_name, pl_orbper, pl_rade, pl_bmasse, st_teff, st_rad
     FROM ps
     WHERE pl_orbper IS NOT NULL AND pl_rade IS NOT NULL AND pl_bmasse IS NOT NULL
@@ -35,6 +35,7 @@ def download_nasaea_data():
 
     ## Cleanup
     # Close connection to the TAP service
-    service.close()
+    # service.close()
+    # TAP is a apparently stateless protocol, so there is no persistent connection to close.
 
     return df

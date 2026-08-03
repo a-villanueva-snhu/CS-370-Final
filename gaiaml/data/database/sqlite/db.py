@@ -5,6 +5,7 @@
 
 import os
 import sqlite3
+from typing import Literal, overload
 import pandas as pd
 import logs.logger as logger
 import src.utils.crud_helper as crud
@@ -22,6 +23,13 @@ schemas = {
         'phot_rp_mean_mag REAL'
     ],
     'nasaea_data': [
+        'id INTEGER PRIMARY KEY',
+        'name TEXT',
+        'ra REAL',
+        'dec REAL',
+        'magnitude REAL'
+    ],
+    'confirmed_hosts': [
         'id INTEGER PRIMARY KEY',
         'name TEXT',
         'ra REAL',
@@ -78,6 +86,9 @@ def initialize_database():
 
     if not crud.table_exists(cursor, 'nasaea_data'):
         crud.create_table(cursor, 'nasaea_data', schemas['nasaea_data'])
+
+    if not crud.table_exists(cursor, 'confirmed_hosts'):
+        crud.create_table(cursor, 'confirmed_hosts', schemas['confirmed_hosts'])
 
     if not crud.table_exists(cursor, 'test_data'):
         crud.create_table(cursor, 'test_data', schemas['test_data'])
@@ -165,6 +176,12 @@ def is_database_initialized():
 # parameters:
 # - table_name: Name of the table to fetch data from
 # - limit: Number of rows to fetch (default is 10)
+@overload
+def fetch_data(table_name: str, limit: int = 10, *, as_dataframe: Literal[False] = False) -> list[tuple]:
+    ...
+@overload
+def fetch_data(table_name: str, limit: int = 10, *, as_dataframe: Literal[True]) -> "pd.DataFrame":
+    ...
 def fetch_data(table_name, limit=10, as_dataframe=False):
     """
     Fetch data from the database.
@@ -445,3 +462,25 @@ def load_model_from_versioning(version):
 
     logger.log_warning(f"No model found for version {version}.")
     return None
+
+
+def store_predictions(table_name, predictions):
+    """
+    Store model predictions in the specified table in the database.
+
+    :param table_name: Name of the table to store predictions
+    :param predictions: List or array of predictions to store
+    """
+    conn = sqlite3.connect(_get_database_path())
+    cursor = conn.cursor()
+
+    if isinstance(predictions[0], (list, tuple)):
+        placeholders = ', '.join(['?'] * len(predictions[0]))
+        query = f"INSERT INTO {table_name} VALUES ({placeholders})"
+        cursor.executemany(query, predictions)
+    else:
+        query = f"INSERT INTO {table_name} VALUES (?)"
+        cursor.executemany(query, [(p,) for p in predictions])
+        
+    conn.commit()
+    conn.close()
