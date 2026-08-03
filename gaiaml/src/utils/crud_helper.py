@@ -1,12 +1,7 @@
 ## A helper utility to handle CRUD operations for SQLite database.
 
 
-#  Creates a new table in the database
-#  Parameters:
-#  - cursor: SQLite cursor object
-#  - table_name: Name of the table to create
-#  - columns: List of column definitions (e.g., ['id INTEGER PRIMARY KEY',
-#             'name TEXT', 'age INTEGER'])
+#  Creates a new table in the database with the specified schema.
 def create_table(cursor, table_name, columns):
     """
     Create a table in the database.
@@ -20,8 +15,6 @@ def create_table(cursor, table_name, columns):
     cursor.execute(query)
 
 # Prints all tables in the database, TEST only, not used in production code
-# Parameters:
-# - cursor: SQLite cursor object
 def print_tables(cursor):
     """
     Print all tables in the database.
@@ -31,3 +24,25 @@ def print_tables(cursor):
     cursor.execute("SELECT name FROM sqlite_master WHERE type='table';")
     tables = cursor.fetchall()
     print(tables)
+
+# Checks if a table exists in the database
+def table_exists(cursor, table_name):
+    """
+    Check if a table exists in the database.
+
+    :param cursor: SQLite cursor object
+    :param table_name: Name of the table to check
+    :return: True if the table exists, False otherwise
+    """
+    cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name=?;", (table_name,))
+    return cursor.fetchone() is not None
+
+
+def drop_table(cursor, table_name):
+    """
+    Drop a table from the database.
+
+    :param cursor: SQLite cursor object
+    :param table_name: Name of the table to drop
+    """
+    cursor.execute(f"DROP TABLE IF EXISTS {table_name}")
