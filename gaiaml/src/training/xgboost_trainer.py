@@ -13,6 +13,48 @@ from config import config_manager
 import logs.logger as logger
 
 
+def evaluate_binary_metrics(y_true, y_pred):
+    """Return accuracy, precision, recall, and F1 for binary predictions."""
+    from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
+
+    y_true = np.asarray(y_true).astype(int)
+    y_pred = np.asarray(y_pred).astype(int)
+    return {
+        "accuracy": float(accuracy_score(y_true, y_pred)),
+        "precision": float(precision_score(y_true, y_pred, zero_division=0)),
+        "recall": float(recall_score(y_true, y_pred, zero_division=0)),
+        "f1": float(f1_score(y_true, y_pred, zero_division=0)),
+    }
+
+
+def run_reinforcement_training_loop(
+    train_fn,
+    evaluate_fn,
+    max_iterations=5,
+    target_accuracy=0.99,
+    target_precision=0.99,
+    target_recall=0.99,
+):
+    """Iterate training and evaluation until a target quality level is reached."""
+    history = []
+    achieved = False
+
+    for iteration in range(1, max_iterations + 1):
+        train_result = train_fn(iteration)
+        metrics = evaluate_fn(train_result, iteration)
+        history.append({"iteration": iteration, **metrics})
+
+        if (
+            metrics.get("accuracy", 0.0) >= target_accuracy
+            and metrics.get("precision", 0.0) >= target_precision
+            and metrics.get("recall", 0.0) >= target_recall
+        ):
+            achieved = True
+            break
+
+    return {"achieved": achieved, "history": history}
+
+
 ## -- TRAINING FUNCTION -- ##
 def train_xgboost_model(X, y, model_params=None, test_size=0.2, random_state=42):
     """
@@ -68,12 +110,12 @@ def train_xgboost_model(X, y, model_params=None, test_size=0.2, random_state=42)
     y_pred_binary = (y_pred > 0.5).astype(int) if 'binary:logistic' in model_params['objective'] else y_pred
 
     # Calculate internal validation metrics if needed
-    from sklearn.metrics import f1_score, accuracy_score, precision_score, recall_score
     if 'binary:logistic' in model_params['objective']:
-        f1 = f1_score(y_test, y_pred_binary, zero_division=0)
-        accuracy = accuracy_score(y_test, y_pred_binary)
-        precision = precision_score(y_test, y_pred_binary, zero_division=0)
-        recall = recall_score(y_test, y_pred_binary, zero_division=0)
+        metrics = evaluate_binary_metrics(y_test, y_pred_binary)
+        f1 = metrics["f1"]
+        accuracy = metrics["accuracy"]
+        precision = metrics["precision"]
+        recall = metrics["recall"]
     else:
         f1 = accuracy = precision = recall = None
 

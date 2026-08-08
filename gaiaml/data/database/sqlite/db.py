@@ -78,6 +78,13 @@ schemas = {
         'source_id INTEGER',
         'likelihood REAL'
     ],
+    'reinforcement_examples': [
+        'id INTEGER PRIMARY KEY AUTOINCREMENT',
+        'source_id INTEGER',
+        'is_confirmed_host INTEGER',
+        'prediction REAL',
+        'reinforced_at TEXT'
+    ],
 }
 
 
@@ -123,6 +130,8 @@ def initialize_database():
         crud.create_table(cursor, 'predictions', schemas['predictions'])
     if not crud.table_exists(cursor, 'new_exoplanet_candidates'):
         crud.create_table(cursor, 'new_exoplanet_candidates', schemas['new_exoplanet_candidates'])
+    if not crud.table_exists(cursor, 'reinforcement_examples'):
+        crud.create_table(cursor, 'reinforcement_examples', schemas['reinforcement_examples'])
 
     else:
         cursor.execute("PRAGMA table_info(model_versioning)")
@@ -534,5 +543,21 @@ def store_predictions(table_name, predictions):
     else:
         raise ValueError(f"Unsupported predictions table: {table_name}")
 
+    conn.commit()
+    conn.close()
+
+
+def append_reinforcement_examples(reinforcement_df):
+    """Append verified examples to the reinforcement_examples table for future training cycles."""
+    if reinforcement_df is None or reinforcement_df.empty:
+        return
+
+    if not {"source_id", "is_confirmed_host", "prediction"}.issubset(reinforcement_df.columns):
+        raise ValueError("reinforcement_df must include source_id, is_confirmed_host, and prediction columns")
+
+    conn = sqlite3.connect(_get_database_path())
+    payload = reinforcement_df[["source_id", "is_confirmed_host", "prediction"]].copy()
+    payload["reinforced_at"] = pd.Timestamp.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+    payload.to_sql("reinforcement_examples", conn, if_exists="append", index=False)
     conn.commit()
     conn.close()

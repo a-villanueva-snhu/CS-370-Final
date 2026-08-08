@@ -10,6 +10,7 @@ from sklearn.model_selection import train_test_split
 from data.database.sqlite import db as db
 from config import config_manager
 import logs.logger as logger
+from datetime import datetime
 
 def run_model():
     """
@@ -69,9 +70,17 @@ def run_model():
             # Evaluate the model's performance using metrics like accuracy, precision, recall, etc.
             from sklearn.metrics import accuracy_score, precision_score, recall_score
             accuracy = accuracy_score(y_true, (y_pred > 0.5).astype(int))
-            precision = precision_score(y_true, (y_pred > 0.5).astype(int))
-            recall = recall_score(y_true, (y_pred > 0.5).astype(int))
+            precision = precision_score(y_true, (y_pred > 0.5).astype(int), zero_division=0)
+            recall = recall_score(y_true, (y_pred > 0.5).astype(int), zero_division=0)
             logger.log_info(f"Model Evaluation - Accuracy: {accuracy:.4f}, Precision: {precision:.4f}, Recall: {recall:.4f}")
+
+            reinforcement_df = pd.DataFrame({
+                "source_id": merged["source_id"].to_numpy(),
+                "is_confirmed_host": merged["is_confirmed_host_y"].to_numpy(),
+                "prediction": y_pred,
+            })
+            db.append_reinforcement_examples(reinforcement_df)
+            logger.log_info(f"Stored {len(reinforcement_df)} reinforcement examples for future training.")
         else:
             logger.log_warning("No overlapping source_ids found between predictions and known hosts for evaluation.")
 

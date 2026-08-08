@@ -492,3 +492,36 @@
 2026-08-08 15:42:56,205 - gaiaml - INFO - Starting GaiaML CLI...
 2026-08-08 15:43:00,323 - gaiaml - INFO - Starting model training...
 2026-08-08 15:43:01,640 - gaiaml - INFO - preprocessing data for training...
+2026-08-08 15:46:38,648 - gaiaml - INFO - Training data does not include 'is_confirmed_host'. Assigning a binary label of 0 for all rows.
+2026-08-08 15:46:38,658 - gaiaml - INFO - Training data does not include 'is_confirmed_host'. Assigning a binary label of 1 for all rows.
+2026-08-08 15:46:38,664 - gaiaml - INFO - gaia_dr3_data is empty. Downloading Gaia DR3 data via the existing downloader.
+2026-08-08 15:46:38,665 - gaiaml - INFO - confirmed_exoplanets_data is empty. Downloading confirmed exoplanet data via the existing downloader.
+2026-08-08 15:46:51,722 - gaiaml - INFO - Training data does not include 'is_confirmed_host'. Assigning a binary label of 0 for all rows.
+2026-08-08 15:46:51,732 - gaiaml - INFO - Training data does not include 'is_confirmed_host'. Assigning a binary label of 1 for all rows.
+2026-08-08 15:46:51,738 - gaiaml - INFO - gaia_dr3_data is empty. Downloading Gaia DR3 data via the existing downloader.
+2026-08-08 15:46:51,739 - gaiaml - INFO - confirmed_exoplanets_data is empty. Downloading confirmed exoplanet data via the existing downloader.
+2026-08-08 15:47:06,024 - gaiaml - INFO - Training data does not include 'is_confirmed_host'. Assigning a binary label of 0 for all rows.
+2026-08-08 15:47:06,034 - gaiaml - INFO - Training data does not include 'is_confirmed_host'. Assigning a binary label of 1 for all rows.
+2026-08-08 15:47:06,040 - gaiaml - INFO - gaia_dr3_data is empty. Downloading Gaia DR3 data via the existing downloader.
+2026-08-08 15:47:06,041 - gaiaml - INFO - confirmed_exoplanets_data is empty. Downloading confirmed exoplanet data via the existing downloader.
+2026-08-08 15:47:25,948 - gaiaml - INFO - Training data does not include 'is_confirmed_host'. Assigning a binary label of 0 for all rows.
+2026-08-08 15:47:25,958 - gaiaml - INFO - Training data does not include 'is_confirmed_host'. Assigning a binary label of 1 for all rows.
+2026-08-08 15:47:25,964 - gaiaml - INFO - gaia_dr3_data is empty. Downloading Gaia DR3 data via the existing downloader.
+2026-08-08 15:47:25,965 - gaiaml - INFO - confirmed_exoplanets_data is empty. Downloading confirmed exoplanet data via the existing downloader.
+2026-08-08 15:57:55,415 - gaiaml - INFO - Training data does not include 'is_confirmed_host'. Assigning a binary label of 0 for all rows.
+2026-08-08 15:57:55,424 - gaiaml - INFO - Training data does not include 'is_confirmed_host'. Assigning a binary label of 1 for all rows.
+2026-08-08 15:57:55,429 - gaiaml - INFO - gaia_dr3_data is empty. Downloading Gaia DR3 data via the existing downloader.
+2026-08-08 15:57:55,430 - gaiaml - INFO - confirmed_exoplanets_data is empty. Downloading confirmed exoplanet data via the existing downloader.
+2026-08-08 16:00:20,853 - gaiaml - INFO - Starting GaiaML...
+2026-08-08 16:00:20,853 - gaiaml - INFO - Initializing database...
+2026-08-08 16:00:20,854 - gaiaml - INFO - This may take a few seconds, please wait...
+2026-08-08 16:00:20,856 - gaiaml - INFO - Database connection established.
+2026-08-08 16:00:20,856 - gaiaml - INFO - Checking and creating tables if they do not exist...
+2026-08-08 16:00:20,856 - gaiaml - INFO - This may take a few moments, please wait...
+2026-08-08 16:00:20,862 - gaiaml - INFO - Database initialized successfully.
+2026-08-08 16:00:20,864 - gaiaml - INFO - Starting GaiaML CLI...
+2026-08-08 16:00:38,286 - gaiaml - WARNING - Reinforcement evaluation skipped: 'is_confirmed_host'
+2026-08-08 16:00:38,370 - gaiaml - WARNING - Reinforcement evaluation skipped: 'is_confirmed_host'
+2026-08-08 16:00:38,449 - gaiaml - WARNING - Reinforcement evaluation skipped: 'is_confirmed_host'
+2026-08-08 16:00:38,526 - gaiaml - WARNING - Reinforcement evaluation skipped: 'is_confirmed_host'
+2026-08-08 16:00:38,610 - gaiaml - WARNING - Reinforcement evaluation skipped: 'is_confirmed_host'

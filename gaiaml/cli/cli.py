@@ -4,6 +4,8 @@
 
 import os
 import shlex
+import pandas as pd
+import xgboost as xgb
 import logs.logger as logger
 from src.tests.e2e_tester import TestLogger
 from config import config_manager
@@ -52,6 +54,8 @@ def _execute_command(command_line):
                 print("  train - Train the model with the preprocessed data")
                 print("  evaluate - Evaluate the trained model")
                 print("  deploy - Deploy the trained model")
+                print("  automate-reinforce [max_iters] [target_accuracy] [target_precision] - Train repeatedly until metrics meet the target")
+                print("  candidates [limit] - Show the highest-likelihood non-confirmed candidate predictions")
                 print("  settings regen <table_name> - Regenerate a database table")
                 print("  Chained commands: use ';' between commands")
                 print("    Example: download g 200; download c 50; preprocess; train; deploy")
@@ -241,6 +245,106 @@ def _execute_command(command_line):
                 print("Running model on new data...")
                 run_model.run_model()
                 print("Model deployment complete.")
+
+            case "automate-reinforce" | "automate_reinforce":
+                import src.models.run_model as run_model
+                from src.preprocessing import preprocessor
+                from src.training import xgboost_trainer
+                from data.database.sqlite import db
+
+                max_iterations = int(args[0]) if len(args) > 0 and args[0].isdigit() else 5
+                target_accuracy = float(args[1]) if len(args) > 1 else 0.99
+                target_precision = float(args[2]) if len(args) > 2 else 0.99
+
+                print(f"Starting reinforcement training loop for up to {max_iterations} iterations...")
+
+                def train_iteration(iteration):
+                    X, y = preprocessor.create_training_dataset_from_gaia_dr3()
+                    model, _, _ = xgboost_trainer.train_xgboost_model(X, y)
+                    return {"model": model, "iteration": iteration, "X": X, "y": y}
+
+                def evaluate_iteration(train_result, iteration):
+                    metrics = {"accuracy": 0.0, "precision": 0.0, "recall": 0.0}
+                    try:
+                        from sklearn.metrics import accuracy_score, precision_score, recall_score
+                        confirmed_df = db.fetch_data("confirmed_exoplanets_data", -1, as_dataframe=True)
+                        gaia_df = db.fetch_data("gaia_dr3_data", -1, as_dataframe=True)
+                        if confirmed_df.empty and gaia_df.empty:
+                            return metrics
+
+                        evaluation_frames = []
+                        if not confirmed_df.empty:
+                            confirmed_df = confirmed_df.copy()
+                            if "is_confirmed_host" not in confirmed_df.columns:
+                                confirmed_df["is_confirmed_host"] = 1
+                            confirmed_df["is_confirmed_host"] = pd.to_numeric(
+                                confirmed_df["is_confirmed_host"], errors="coerce"
+                            ).fillna(1).astype(int)
+                            evaluation_frames.append(confirmed_df)
+
+                        if not gaia_df.empty:
+                            gaia_eval = gaia_df.copy()
+                            if "is_confirmed_host" not in gaia_eval.columns:
+                                gaia_eval["is_confirmed_host"] = 0
+                            gaia_eval["is_confirmed_host"] = pd.to_numeric(
+                                gaia_eval["is_confirmed_host"], errors="coerce"
+                            ).fillna(0).astype(int)
+                            evaluation_frames.append(gaia_eval)
+
+                        eval_df = pd.concat(evaluation_frames, ignore_index=True) if evaluation_frames else pd.DataFrame()
+                        if eval_df.empty:
+                            return metrics
+
+                        X_eval, y_true = preprocessor.preprocess_gaia_data(
+                            eval_df,
+                            target_column="is_confirmed_host",
+                            default_target=0,
+                        )
+                        probs = train_result["model"].predict(xgb.DMatrix(X_eval))
+                        preds = (probs > 0.5).astype(int)
+                        metrics = {
+                            "accuracy": float(accuracy_score(y_true, preds)),
+                            "precision": float(precision_score(y_true, preds, zero_division=0)),
+                            "recall": float(recall_score(y_true, preds, zero_division=0)),
+                        }
+                    except Exception as exc:
+                        logger.log_warning(f"Reinforcement evaluation skipped: {exc}")
+                    return metrics
+
+                result = xgboost_trainer.run_reinforcement_training_loop(
+                    train_iteration,
+                    evaluate_iteration,
+                    max_iterations=max_iterations,
+                    target_accuracy=target_accuracy,
+                    target_precision=target_precision,
+                )
+
+                print("Reinforcement training summary:")
+                for item in result["history"]:
+                    print(f"  iteration {item['iteration']}: accuracy={item['accuracy']:.4f}, precision={item['precision']:.4f}, recall={item['recall']:.4f}")
+
+                if result["achieved"]:
+                    print("Target metrics reached.")
+                    prompt = input("Run the model on new random data now? [y/N]: ").strip().lower()
+                    if prompt in {"y", "yes"}:
+                        run_model.run_model()
+                        print("Deployment complete. Review predictions and candidate likelihoods in the database.")
+                    else:
+                        print("Skipped deployment. Use 'deploy' or 'candidates' later.")
+                else:
+                    print("Target metrics were not reached within the requested iterations. Review the metrics and rerun the command with more iterations.")
+
+            case "candidates" | "likelihoods":
+                from data.database.sqlite import db
+                limit = int(args[0]) if len(args) > 0 and args[0].isdigit() else 10
+                candidates = db.fetch_data("new_exoplanet_candidates", -1, as_dataframe=True)
+                if candidates.empty:
+                    print("No candidate likelihoods have been stored yet. Run 'deploy' or 'automate-reinforce' first.")
+                    return True
+                candidates = candidates.sort_values(by="likelihood", ascending=False).head(limit)
+                print(f"Top {len(candidates)} candidate likelihoods:")
+                for _, row in candidates.iterrows():
+                    print(f"  source_id={int(row['source_id'])} likelihood={float(row['likelihood']):.4f}")
 
             case "settings":
                 c = args[0].lower() if args else input("Enter the settings command | regen | : ").strip().lower()
