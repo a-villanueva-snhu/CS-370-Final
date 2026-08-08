@@ -66,7 +66,8 @@ def download_gaia_dr3_data(count=100, force_refresh=False):
         
         # Insert natively into SQLite (replaces custom db handler)
         with sqlite3.connect(_get_database_path()) as conn:
-            df.to_sql('gaia_dr3_data', conn, if_exists='append', index=False)
+            write_mode = 'replace' if force_refresh else 'append'
+            df.to_sql('gaia_dr3_data', conn, if_exists=write_mode, index=False)
             
             logger.log_info(f"Gaia DR3 data downloaded and inserted into the database. Rows: {len(df)}")
 
@@ -116,7 +117,8 @@ def download_confirmed_exoplanets_data(count=10, force_refresh=False):
         # NATIVE DATABASE STORAGE:
         df: pd.DataFrame = results.to_pandas()
         with sqlite3.connect(db_path) as conn:
-            df.to_sql('confirmed_exoplanets_data', conn, if_exists='replace', index=False)
+            write_mode = 'replace' if force_refresh else 'append'
+            df.to_sql('confirmed_exoplanets_data', conn, if_exists=write_mode, index=False)
             
         logger.log_info(f"Confirmed exoplanets data downloaded and inserted into the database. Rows: {len(df)} Path: {db_path}")
         

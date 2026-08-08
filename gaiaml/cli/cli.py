@@ -218,8 +218,7 @@ def _execute_command(command_line):
                 from src.preprocessing import preprocessor
 
                 logger.log_info("preprocessing data for training...")
-                df = db.fetch_data("test_data", as_dataframe=True)  # Fetch data from the database
-                X, y = preprocessor.preprocess_gaia_data(df)  # Replace 'df' with your actual DataFrame
+                X, y = preprocessor.create_training_dataset_from_gaia_dr3()
 
                 xgboost_trainer.train_xgboost_model(X, y)
 

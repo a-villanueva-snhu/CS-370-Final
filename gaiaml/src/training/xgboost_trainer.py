@@ -70,10 +70,10 @@ def train_xgboost_model(X, y, model_params=None, test_size=0.2, random_state=42)
     # Calculate internal validation metrics if needed
     from sklearn.metrics import f1_score, accuracy_score, precision_score, recall_score
     if 'binary:logistic' in model_params['objective']:
-        f1 = f1_score(y_test, y_pred_binary)
+        f1 = f1_score(y_test, y_pred_binary, zero_division=0)
         accuracy = accuracy_score(y_test, y_pred_binary)
-        precision = precision_score(y_test, y_pred_binary)
-        recall = recall_score(y_test, y_pred_binary)
+        precision = precision_score(y_test, y_pred_binary, zero_division=0)
+        recall = recall_score(y_test, y_pred_binary, zero_division=0)
     else:
         f1 = accuracy = precision = recall = None
 
