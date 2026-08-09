@@ -5,6 +5,7 @@
 
 import os
 import sqlite3
+from pathlib import Path
 from typing import Literal, overload
 import pandas as pd
 import numpy as np
@@ -446,6 +447,8 @@ def save_model_version_json(version, date_created, f1, accuracy, precision, reca
     :param recall: Recall of the model
     :param model_json: JSON string representation of the model
     """
+    if isinstance(model_json, str) and not os.path.isabs(model_json):
+        model_json = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..', model_json))
     conn = sqlite3.connect(_get_database_path())
     cursor = conn.cursor()
 
@@ -496,7 +499,7 @@ def load_model_from_versioning(version):
     conn.close()
 
     if result:
-        return result[0]
+        return _resolve_model_path(result[0]) or result[0]
 
     logger.log_warning(f"No model found for version {version}.")
     return None
@@ -512,14 +515,43 @@ def get_latest_model_version():
     return row[0] if row else None
 
 
-def store_predictions(table_name, predictions):
+def _resolve_model_path(model_json_path: str | None) -> str | None:
+    """Resolve a stored model path against the current working directory and project root."""
+    if not model_json_path:
+        return None
+
+    raw_path = Path(model_json_path)
+    if raw_path.is_absolute():
+        return str(raw_path) if raw_path.exists() else None
+
+    package_root = Path(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..')))
+    repo_root = package_root.parent
+    candidates = [
+        Path.cwd() / raw_path,
+        package_root / raw_path,
+        repo_root / raw_path,
+    ]
+    for candidate in candidates:
+        if candidate.exists():
+            return str(candidate.resolve())
+
+    return model_json_path
+
+
+def store_predictions(table_name, predictions, replace_existing=False):
     """
     Store model predictions in the specified table in the database.
 
     :param table_name: Name of the table to store predictions
     :param predictions: List or array of predictions to store
+    :param replace_existing: When True, clear prior rows in the target table before inserting new data.
     """
     conn = sqlite3.connect(_get_database_path())
+
+    if replace_existing:
+        cursor = conn.cursor()
+        cursor.execute(f"DELETE FROM {table_name}")
+        conn.commit()
 
     if table_name == "predictions":
         if isinstance(predictions, pd.DataFrame):

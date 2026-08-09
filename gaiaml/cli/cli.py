@@ -4,6 +4,7 @@
 
 import os
 import shlex
+import sys
 import pandas as pd
 import xgboost as xgb
 import logs.logger as logger
@@ -20,6 +21,21 @@ def _parse_positive_int(value, default_value):
     except (TypeError, ValueError):
         pass
     return default_value
+
+
+def _prompt_for_confirmation(prompt, default_yes=False):
+    """Prompt for confirmation, but default to the provided choice for non-interactive runs."""
+    if not sys.stdin.isatty():
+        return default_yes
+
+    try:
+        response = input(prompt).strip().lower()
+    except EOFError:
+        return default_yes
+
+    if response in {"", "y", "yes"}:
+        return True
+    return False
 
 
 def _execute_command(command_line):
@@ -260,52 +276,21 @@ def _execute_command(command_line):
 
                 def train_iteration(iteration):
                     X, y = preprocessor.create_training_dataset_from_gaia_dr3()
-                    model, _, _ = xgboost_trainer.train_xgboost_model(X, y)
-                    return {"model": model, "iteration": iteration, "X": X, "y": y}
+                    model, X_test, y_test = xgboost_trainer.train_xgboost_model(X, y)
+                    return {"model": model, "iteration": iteration, "X_test": X_test, "y_test": y_test}
 
                 def evaluate_iteration(train_result, iteration):
                     metrics = {"accuracy": 0.0, "precision": 0.0, "recall": 0.0}
                     try:
                         from sklearn.metrics import accuracy_score, precision_score, recall_score
-                        confirmed_df = db.fetch_data("confirmed_exoplanets_data", -1, as_dataframe=True)
-                        gaia_df = db.fetch_data("gaia_dr3_data", -1, as_dataframe=True)
-                        if confirmed_df.empty and gaia_df.empty:
-                            return metrics
-
-                        evaluation_frames = []
-                        if not confirmed_df.empty:
-                            confirmed_df = confirmed_df.copy()
-                            if "is_confirmed_host" not in confirmed_df.columns:
-                                confirmed_df["is_confirmed_host"] = 1
-                            confirmed_df["is_confirmed_host"] = pd.to_numeric(
-                                confirmed_df["is_confirmed_host"], errors="coerce"
-                            ).fillna(1).astype(int)
-                            evaluation_frames.append(confirmed_df)
-
-                        if not gaia_df.empty:
-                            gaia_eval = gaia_df.copy()
-                            if "is_confirmed_host" not in gaia_eval.columns:
-                                gaia_eval["is_confirmed_host"] = 0
-                            gaia_eval["is_confirmed_host"] = pd.to_numeric(
-                                gaia_eval["is_confirmed_host"], errors="coerce"
-                            ).fillna(0).astype(int)
-                            evaluation_frames.append(gaia_eval)
-
-                        eval_df = pd.concat(evaluation_frames, ignore_index=True) if evaluation_frames else pd.DataFrame()
-                        if eval_df.empty:
-                            return metrics
-
-                        X_eval, y_true = preprocessor.preprocess_gaia_data(
-                            eval_df,
-                            target_column="is_confirmed_host",
-                            default_target=0,
-                        )
-                        probs = train_result["model"].predict(xgb.DMatrix(X_eval))
+                        X_test = train_result["X_test"]
+                        y_test = train_result["y_test"]
+                        probs = train_result["model"].predict(xgb.DMatrix(X_test))
                         preds = (probs > 0.5).astype(int)
                         metrics = {
-                            "accuracy": float(accuracy_score(y_true, preds)),
-                            "precision": float(precision_score(y_true, preds, zero_division=0)),
-                            "recall": float(recall_score(y_true, preds, zero_division=0)),
+                            "accuracy": float(accuracy_score(y_test, preds)),
+                            "precision": float(precision_score(y_test, preds, zero_division=0)),
+                            "recall": float(recall_score(y_test, preds, zero_division=0)),
                         }
                     except Exception as exc:
                         logger.log_warning(f"Reinforcement evaluation skipped: {exc}")
@@ -325,8 +310,8 @@ def _execute_command(command_line):
 
                 if result["achieved"]:
                     print("Target metrics reached.")
-                    prompt = input("Run the model on new random data now? [y/N]: ").strip().lower()
-                    if prompt in {"y", "yes"}:
+                    should_deploy = _prompt_for_confirmation("Run the model on new random data now? [y/N]: ", default_yes=True)
+                    if should_deploy:
                         run_model.run_model()
                         print("Deployment complete. Review predictions and candidate likelihoods in the database.")
                     else:

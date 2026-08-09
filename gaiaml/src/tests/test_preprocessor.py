@@ -13,6 +13,7 @@ from src.preprocessing.preprocessor import (
     preprocess_confirmed_exoplanets_data,
 )
 from src.training import xgboost_trainer
+from data.database.sqlite import db as database_db
 
 
 def test_preprocess_gaia_data_uses_negative_label_for_unlabeled_rows():
@@ -129,3 +130,25 @@ def test_run_reinforcement_training_loop_stops_when_target_reached(monkeypatch):
     assert result["achieved"] is True
     assert len(result["history"]) == 1
     assert calls == [1]
+
+
+def test_store_predictions_replaces_existing_rows(monkeypatch, tmp_path):
+    db_path = tmp_path / "test.db"
+    monkeypatch.setattr(database_db, "_get_database_path", lambda: str(db_path))
+
+    database_db.initialize_database()
+    database_db.store_predictions(
+        "new_exoplanet_candidates",
+        pd.DataFrame({"source_id": [1], "likelihood": [0.9]}),
+        replace_existing=True,
+    )
+    database_db.store_predictions(
+        "new_exoplanet_candidates",
+        pd.DataFrame({"source_id": [2], "likelihood": [0.2]}),
+        replace_existing=True,
+    )
+
+    rows = database_db.fetch_data("new_exoplanet_candidates", -1, as_dataframe=True)
+
+    assert rows["source_id"].tolist() == [2]
+    assert rows["likelihood"].tolist() == [0.2]

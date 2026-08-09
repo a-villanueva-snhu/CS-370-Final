@@ -90,7 +90,23 @@ def run_model():
         new_candidate_features = new_candidates.drop(columns=["source_id"], errors="ignore")
         new_candidates = new_candidates.copy()
         new_candidates["likelihood"] = model.predict(xgb.DMatrix(new_candidate_features))
-        db.store_predictions("new_exoplanet_candidates", new_candidates[["source_id", "likelihood"]])
+        db.store_predictions(
+            "new_exoplanet_candidates",
+            new_candidates[["source_id", "likelihood"]],
+            replace_existing=True,
+        )
+
+        report_df = new_candidates[["source_id", "likelihood"]].copy()
+        report_df = report_df.sort_values(by="likelihood", ascending=False)
+        report_df["confidence"] = report_df["likelihood"].apply(
+            lambda value: "high" if value >= 0.8 else "medium" if value >= 0.5 else "low"
+        )
+        report_df = report_df.reset_index(drop=True)
+        logger.log_info("Top candidate report:")
+        for _, row in report_df.head(10).iterrows():
+            logger.log_info(
+                f"source_id={int(row['source_id'])} likelihood={float(row['likelihood']):.4f} confidence={row['confidence']}"
+            )
 
     # Save the model to the versioning database
 

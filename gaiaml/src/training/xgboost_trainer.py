@@ -87,14 +87,21 @@ def train_xgboost_model(X, y, model_params=None, test_size=0.2, random_state=42)
         unique_targets = np.unique(y_train)
         is_binary_classification = len(unique_targets) == 2 and set(unique_targets).issubset({0, 1})
 
+        positive_count = int(np.sum(y_train == 1))
+        negative_count = int(np.sum(y_train == 0))
+        scale_pos_weight = (negative_count / positive_count) if positive_count else 1.0
+
         model_params = {
             'objective': 'binary:logistic' if is_binary_classification else 'reg:squarederror',
             'eval_metric': 'logloss' if is_binary_classification else 'rmse',
-            'max_depth': 6,
-            'eta': 0.1,
+            'max_depth': 4,
+            'eta': 0.2,
             'subsample': 0.8,
             'colsample_bytree': 0.8,
-            'seed': random_state
+            'seed': random_state,
+            'scale_pos_weight': scale_pos_weight,
+            'min_child_weight': 2,
+            'gamma': 0.1,
         }
 
     # Train the model
@@ -107,7 +114,7 @@ def train_xgboost_model(X, y, model_params=None, test_size=0.2, random_state=42)
 
     # F1 Score, Accuracy, Precision, Recall can be calculated here if needed for internal validation
     y_pred = model.predict(dtest)
-    y_pred_binary = (y_pred > 0.5).astype(int) if 'binary:logistic' in model_params['objective'] else y_pred
+    y_pred_binary = (y_pred > 0.3).astype(int) if 'binary:logistic' in model_params['objective'] else y_pred
 
     # Calculate internal validation metrics if needed
     if 'binary:logistic' in model_params['objective']:
@@ -124,13 +131,14 @@ def train_xgboost_model(X, y, model_params=None, test_size=0.2, random_state=42)
     model_version = config_manager.get_next_model_version()
 
     # formatted model version string for json filename export
-    jstring = f"gaiaml/src/models/xgboost_model_v{model_version.replace('.', '_')}.json"
+    project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..'))
+    model_dir = os.path.join(project_root, 'gaiaml', 'src', 'models')
+    jstring = os.path.join(model_dir, f"xgboost_model_v{model_version.replace('.', '_')}.json")
 
     # check that the directory exists
-    import os
     try:
-        if not os.path.exists(os.path.dirname(jstring)):
-            os.makedirs(os.path.dirname(jstring))
+        if not os.path.exists(model_dir):
+            os.makedirs(model_dir)
     except Exception as e:
         logger.log_error(f"Failed to create directory for model JSON: {e}")
         raise
