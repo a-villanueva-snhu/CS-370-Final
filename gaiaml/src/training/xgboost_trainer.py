@@ -4,13 +4,35 @@
 # It is also used to save and load the model from the 
 # versioning database.
 
+import os
+
 from data.database.sqlite import db as db
 import xgboost as xgb
 import numpy as np
-import pandas as pd
+# import pandas as pd
 from sklearn.model_selection import train_test_split
 from config import config_manager
 import logs.logger as logger
+
+
+def _can_use_stratify(y, test_size):
+    """Return whether train_test_split can safely stratify this binary target."""
+    y = np.asarray(y)
+    if y.size < 2:
+        return False
+    unique_values, counts = np.unique(y, return_counts=True)
+    if len(unique_values) < 2:
+        return False
+
+    # Stratified splitting requires at least one sample from each class in test/train.
+    if isinstance(test_size, float):
+        test_count = int(np.ceil(y.size * test_size))
+    else:
+        test_count = int(test_size)
+    train_count = int(y.size - test_count)
+    if test_count < len(unique_values) or train_count < len(unique_values):
+        return False
+    return bool(np.all(counts >= 2))
 
 
 def evaluate_binary_metrics(y_true, y_pred):
@@ -19,12 +41,52 @@ def evaluate_binary_metrics(y_true, y_pred):
 
     y_true = np.asarray(y_true).astype(int)
     y_pred = np.asarray(y_pred).astype(int)
+
+    # Precision/recall/F1 are not meaningful when the validation labels contain only one class.
+    unique_classes = np.unique(y_true)
+    has_both_classes = len(unique_classes) == 2 and set(unique_classes).issubset({0, 1})
+
+    if has_both_classes:
+        precision = float(precision_score(y_true, y_pred, zero_division=0))
+        recall = float(recall_score(y_true, y_pred, zero_division=0))
+        f1 = float(f1_score(y_true, y_pred, zero_division=0))
+    else:
+        precision = float("nan")
+        recall = float("nan")
+        f1 = float("nan")
+
     return {
         "accuracy": float(accuracy_score(y_true, y_pred)),
-        "precision": float(precision_score(y_true, y_pred, zero_division=0)),
-        "recall": float(recall_score(y_true, y_pred, zero_division=0)),
-        "f1": float(f1_score(y_true, y_pred, zero_division=0)),
+        "precision": precision,
+        "recall": recall,
+        "f1": f1,
+        "binary_eval_valid": has_both_classes,
     }
+
+
+def select_decision_threshold(y_true, y_score, default_threshold=0.5):
+    """Choose a binary decision threshold that maximizes F1 on the provided labels/scores."""
+    from sklearn.metrics import precision_recall_curve
+
+    y_true = np.asarray(y_true).astype(int)
+    y_score = np.asarray(y_score).astype(float)
+
+    unique_classes = np.unique(y_true)
+    has_both_classes = len(unique_classes) == 2 and set(unique_classes).issubset({0, 1})
+    if not has_both_classes:
+        return float(default_threshold)
+
+    precision, recall, thresholds = precision_recall_curve(y_true, y_score)
+    if thresholds.size == 0:
+        return float(default_threshold)
+
+    # precision/recall are one element longer than thresholds.
+    f1_scores = (2 * precision[:-1] * recall[:-1]) / np.clip(precision[:-1] + recall[:-1], 1e-12, None)
+    best_index = int(np.nanargmax(f1_scores))
+    best_threshold = float(thresholds[best_index])
+
+    # Keep threshold in a sane probability range.
+    return float(np.clip(best_threshold, 0.05, 0.95))
 
 
 def run_reinforcement_training_loop(
@@ -77,7 +139,14 @@ def train_xgboost_model(X, y, model_params=None, test_size=0.2, random_state=42)
         raise ValueError("At least two training rows are required to train a model.")
 
     # Split the data into training and testing sets
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=test_size, random_state=random_state)
+    stratify = y if _can_use_stratify(y, test_size) else None
+    X_train, X_test, y_train, y_test = train_test_split(
+        X,
+        y,
+        test_size=test_size,
+        random_state=random_state,
+        stratify=stratify,
+    )
 
     # Create an XGBoost DMatrix for training
     dtrain = xgb.DMatrix(X_train, label=y_train)
@@ -114,15 +183,29 @@ def train_xgboost_model(X, y, model_params=None, test_size=0.2, random_state=42)
 
     # F1 Score, Accuracy, Precision, Recall can be calculated here if needed for internal validation
     y_pred = model.predict(dtest)
-    y_pred_binary = (y_pred > 0.3).astype(int) if 'binary:logistic' in model_params['objective'] else y_pred
+    decision_threshold = 0.5
+    if 'binary:logistic' in model_params['objective']:
+        decision_threshold = select_decision_threshold(y_test, y_pred, default_threshold=0.5)
+    y_pred_binary = (y_pred >= decision_threshold).astype(int) if 'binary:logistic' in model_params['objective'] else y_pred
 
     # Calculate internal validation metrics if needed
     if 'binary:logistic' in model_params['objective']:
         metrics = evaluate_binary_metrics(y_test, y_pred_binary)
+        if not metrics.get("binary_eval_valid", False):
+            logger.log_warning(
+                "Internal validation labels contain only one class in y_test. "
+                "Precision/recall/F1 are recorded as NaN to avoid misleading perfect metrics."
+            )
+            decision_threshold = 0.5
         f1 = metrics["f1"]
         accuracy = metrics["accuracy"]
         precision = metrics["precision"]
         recall = metrics["recall"]
+        logger.log_info(
+            f"Internal validation threshold={decision_threshold:.3f} accuracy={accuracy:.4f} "
+            f"precision={precision:.4f} recall={recall:.4f} f1={f1:.4f}"
+        )
+        model.set_attr(decision_threshold=f"{max(0.05, decision_threshold - 1e-9):.12f}")
     else:
         f1 = accuracy = precision = recall = None
 

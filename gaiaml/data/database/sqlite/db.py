@@ -515,6 +515,35 @@ def get_latest_model_version():
     return row[0] if row else None
 
 
+def get_latest_model_metrics():
+    """Fetch the most recently saved model metrics and version metadata."""
+    conn = sqlite3.connect(_get_database_path())
+    cursor = conn.cursor()
+    cursor.execute(
+        """
+        SELECT version, date_created, f1, accuracy, precision, recall, model_json
+        FROM model_versioning
+        ORDER BY rowid DESC
+        LIMIT 1
+        """
+    )
+    row = cursor.fetchone()
+    conn.close()
+    if not row:
+        return None
+
+    columns = [
+        "version",
+        "date_created",
+        "f1",
+        "accuracy",
+        "precision",
+        "recall",
+        "model_json",
+    ]
+    return dict(zip(columns, row))
+
+
 def _resolve_model_path(model_json_path: str | None) -> str | None:
     """Resolve a stored model path against the current working directory and project root."""
     if not model_json_path:
@@ -589,6 +618,22 @@ def append_reinforcement_examples(reinforcement_df):
 
     conn = sqlite3.connect(_get_database_path())
     payload = reinforcement_df[["source_id", "is_confirmed_host", "prediction"]].copy()
+    payload = payload.dropna(subset=["source_id", "is_confirmed_host", "prediction"])
+    payload["source_id"] = pd.to_numeric(payload["source_id"], errors="coerce")
+    payload = payload.dropna(subset=["source_id"])
+    payload["source_id"] = payload["source_id"].astype("int64")
+    payload["is_confirmed_host"] = pd.to_numeric(payload["is_confirmed_host"], errors="coerce").fillna(0).astype(int)
+    payload = payload.drop_duplicates(subset=["source_id"], keep="last")
+
+    existing_ids_df = pd.read_sql_query("SELECT source_id FROM reinforcement_examples", conn)
+    if not existing_ids_df.empty:
+        existing_ids = set(pd.to_numeric(existing_ids_df["source_id"], errors="coerce").dropna().astype("int64").tolist())
+        payload = payload[~payload["source_id"].isin(existing_ids)]
+
+    if payload.empty:
+        conn.close()
+        return
+
     payload["reinforced_at"] = pd.Timestamp.utcnow().strftime("%Y-%m-%d %H:%M:%S")
     payload.to_sql("reinforcement_examples", conn, if_exists="append", index=False)
     conn.commit()

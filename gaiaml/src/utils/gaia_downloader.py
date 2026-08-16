@@ -114,8 +114,15 @@ def download_confirmed_exoplanets_data(count=10, force_refresh=False):
             logger.log_error("Confirmed exoplanets query returned no results.")
             return
         
-        # NATIVE DATABASE STORAGE:
+        # Keep columns aligned to model feature expectations and mark confirmed positives.
         df: pd.DataFrame = results.to_pandas()
+        expected_cols = [
+            'source_id', 'ra', 'dec', 'parallax',
+            'phot_g_mean_mag', 'phot_bp_mean_mag', 'phot_rp_mean_mag'
+        ]
+        df = df[[col for col in expected_cols if col in df.columns]].copy()
+        df['is_confirmed_host'] = 1
+
         with sqlite3.connect(db_path) as conn:
             write_mode = 'replace' if force_refresh else 'append'
             df.to_sql('confirmed_exoplanets_data', conn, if_exists=write_mode, index=False)

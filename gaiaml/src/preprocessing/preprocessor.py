@@ -65,13 +65,6 @@ def preprocess_gaia_data(df, target_column='is_confirmed_host', default_target=0
 
     df = df.copy()
 
-    if target_column not in df.columns:
-        logger.log_info(
-            f"Training data does not include '{target_column}'. Assigning a binary label of {default_target} for all rows."
-        )
-        df[target_column] = default_target
-
-
     if df.empty:
         raise ValueError("No rows were returned for training.")
 
@@ -168,13 +161,24 @@ def create_training_dataset_from_gaia_dr3():
         logger.log_warning("gaia_dr3_data is empty after download attempt. Falling back to test_data for preprocessing.")
         df = db.fetch_data("test_data", -1, as_dataframe=True)
 
+    df = df.copy()
     if "is_confirmed_host" not in df.columns:
-        df = df.copy()
         df["is_confirmed_host"] = 0
 
-    if df_confirmed is not None and "is_confirmed_host" not in df_confirmed.columns:
+    if df_confirmed is not None and not df_confirmed.empty:
         df_confirmed = df_confirmed.copy()
-        df_confirmed["is_confirmed_host"] = 1
+        if "is_confirmed_host" not in df_confirmed.columns:
+            df_confirmed["is_confirmed_host"] = 1
+
+        # Avoid contradictory labels: if a Gaia source appears in confirmed hosts,
+        # treat that Gaia row as positive before building the combined dataset.
+        if "source_id" in df.columns and "source_id" in df_confirmed.columns:
+            confirmed_ids = set(pd.to_numeric(df_confirmed["source_id"], errors="coerce").dropna().astype("int64").tolist())
+            if confirmed_ids:
+                source_ids = pd.to_numeric(df["source_id"], errors="coerce")
+                overlap_mask = source_ids.isin(confirmed_ids)
+                if overlap_mask.any():
+                    df.loc[overlap_mask, "is_confirmed_host"] = 1
 
     # Preprocess the Gaia DR3 data as unlabeled negatives for training.
     X_gaia, y_gaia = preprocess_gaia_data(df, target_column='is_confirmed_host', default_target=0)

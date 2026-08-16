@@ -132,6 +132,40 @@ def test_run_reinforcement_training_loop_stops_when_target_reached(monkeypatch):
     assert calls == [1]
 
 
+def test_get_latest_model_metrics_returns_latest_saved_metrics(monkeypatch, tmp_path):
+    db_path = tmp_path / "test.db"
+    monkeypatch.setattr(database_db, "_get_database_path", lambda: str(db_path))
+
+    database_db.initialize_database()
+    database_db.save_model_version_json(
+        version="0.0.1",
+        date_created="2024-01-01",
+        f1=0.90,
+        accuracy=0.88,
+        precision=0.92,
+        recall=0.87,
+        model_json="/tmp/model_v0_0_1.json",
+    )
+    database_db.save_model_version_json(
+        version="0.0.2",
+        date_created="2024-01-02",
+        f1=0.95,
+        accuracy=0.94,
+        precision=0.96,
+        recall=0.93,
+        model_json="/tmp/model_v0_0_2.json",
+    )
+
+    metrics = database_db.get_latest_model_metrics()
+
+    assert metrics is not None
+    assert metrics["version"] == "0.0.2"
+    assert metrics["accuracy"] == 0.94
+    assert metrics["precision"] == 0.96
+    assert metrics["recall"] == 0.93
+    assert metrics["f1"] == 0.95
+
+
 def test_store_predictions_replaces_existing_rows(monkeypatch, tmp_path):
     db_path = tmp_path / "test.db"
     monkeypatch.setattr(database_db, "_get_database_path", lambda: str(db_path))

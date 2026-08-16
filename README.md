@@ -5,6 +5,11 @@ July 20, 2026
 
 Version:
 
+1.4.0     |     Fixed deployment inference to score all available Gaia rows instead of a partial default slice
+          |     Added adaptive decision-threshold selection from validation data and persisted threshold metadata on model artifacts
+          |     Updated reinforcement flow to score confirmed-host rows directly and deduplicate reinforcement examples by source_id
+          |     Improved candidate confidence reporting to align with the learned deployment threshold
+
 1.3.0     |     Added explicit binary labels for training data so Gaia rows are treated as negatives and confirmed exoplanet rows as positives
           |     Expanded the training loop to support reinforcement examples and reuse verified predictions in later training runs
           |     Added deployment and candidate-likelihood reporting, with ranked candidate persistence in SQLite
@@ -27,7 +32,7 @@ Project GaiaML is an open-source scientific data tool designed to use eXtreme Gr
 
 The goal is to show that XGBoost is a strong choice for analyzing large, tabularized data sets such as many astronomical data, and that it is capable of being tuned and trained to accurately classify known systems as well as to create predictions for possible new candidates. 
 
-Current implementation status: the pipeline can download Gaia DR3 rows and confirmed exoplanet samples, preprocess data with explicit binary labels, train an XGBoost model, deploy it to score new rows, persist candidate likelihoods, and store reinforcement examples for future training cycles. The current workflow now produces ranked candidate reports and supports automated reinforcement iterations from the CLI.
+Current implementation status: the pipeline can download Gaia DR3 rows and confirmed exoplanet samples, preprocess data with explicit binary labels, train an XGBoost model, deploy it to score the full available Gaia dataset, persist candidate likelihoods, and store reinforcement examples for future training cycles. The workflow now supports adaptive threshold selection for binary decisions, threshold-aware candidate confidence reporting, and automated reinforcement iterations from the CLI.
 
 # Project Structure
 
@@ -147,8 +152,9 @@ The current training system is designed around a tabular pipeline that uses publ
 3. **Training** (`gaiaml/src/training/xgboost_trainer.py`)
 - Splits data into train/test using `train_test_split`
 - Uses a binary logistic objective for labels in `{0, 1}`
-- Applies class weighting and a lower probability threshold to encourage meaningful positive predictions
+- Applies class weighting and selects a validation-driven decision threshold to maximize binary classification utility
 - Computes internal metrics such as accuracy, precision, recall, and F1 for the binary case
+- Persists the learned decision threshold in model metadata for deployment-time reuse
 
 4. **Model versioning**
 - Saves trained model JSON under `gaiaml/src/models/` with versioned naming
@@ -162,10 +168,11 @@ The current training system is designed around a tabular pipeline that uses publ
     - model_json path
 
 5. **Deployment and candidate generation**
-- The deployment step loads the most recently saved model version and scores the available Gaia rows
-- Prediction outputs are stored in the `predictions` table
+- The deployment step loads the most recently saved model version and scores all available Gaia rows
+- Prediction outputs are stored in the `predictions` table with full-run replacement
 - Non-confirmed rows are ranked by likelihood and written to `new_exoplanet_candidates`
-- Verified examples can be appended to `reinforcement_examples` for future retraining loops
+- Candidate confidence levels are computed relative to the learned decision threshold
+- Confirmed-host rows are scored directly to append reinforcement examples even when source-id overlap is sparse
 
 ## Configuration
 

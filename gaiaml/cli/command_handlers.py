@@ -197,7 +197,23 @@ def handle_train():
 
 
 def handle_evaluate():
-    print("Evaluating model...")
+    print("Evaluating current model metrics...")
+    from data.database.sqlite import db
+
+    metrics = db.get_latest_model_metrics()
+    if not metrics:
+        print("No model metrics have been recorded yet. Train a model first.")
+        return True
+
+    print(f"Latest model version: {metrics.get('version', 'unknown')}")
+    print(f"Created: {metrics.get('date_created', 'unknown')}")
+    print(f"  accuracy: {metrics.get('accuracy', 0.0):.4f}")
+    print(f"  precision: {metrics.get('precision', 0.0):.4f}")
+    print(f"  recall: {metrics.get('recall', 0.0):.4f}")
+    print(f"  f1: {metrics.get('f1', 0.0):.4f}")
+    model_path = metrics.get('model_json')
+    if model_path:
+        print(f"  model file: {model_path}")
     print("Model evaluation complete.")
     return True
 
@@ -228,17 +244,20 @@ def handle_automate_reinforce(args):
         return {"model": model, "iteration": iteration, "X_test": X_test, "y_test": y_test}
 
     def evaluate_iteration(train_result, iteration):
-        metrics = {"accuracy": 0.0, "precision": 0.0, "recall": 0.0}
+        metrics = {"accuracy": 0.0, "precision": 0.0, "recall": 0.0, "f1": 0.0, "threshold": 0.5}
         try:
-            from sklearn.metrics import accuracy_score, precision_score, recall_score
+            from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
             X_test = train_result["X_test"]
             y_test = train_result["y_test"]
             probs = train_result["model"].predict(xgb.DMatrix(X_test))
-            preds = (probs > 0.5).astype(int)
+            threshold = xgboost_trainer.select_decision_threshold(y_test, probs, default_threshold=0.5)
+            preds = (probs >= threshold).astype(int)
             metrics = {
                 "accuracy": float(accuracy_score(y_test, preds)),
                 "precision": float(precision_score(y_test, preds, zero_division=0)),
                 "recall": float(recall_score(y_test, preds, zero_division=0)),
+                "f1": float(f1_score(y_test, preds, zero_division=0)),
+                "threshold": float(threshold),
             }
         except Exception as exc:
             logger.log_warning(f"Reinforcement evaluation skipped: {exc}")
@@ -254,7 +273,11 @@ def handle_automate_reinforce(args):
 
     print("Reinforcement training summary:")
     for item in result["history"]:
-        print(f"  iteration {item['iteration']}: accuracy={item['accuracy']:.4f}, precision={item['precision']:.4f}, recall={item['recall']:.4f}")
+        print(
+            f"  iteration {item['iteration']}: accuracy={item['accuracy']:.4f}, "
+            f"precision={item['precision']:.4f}, recall={item['recall']:.4f}, "
+            f"f1={item.get('f1', 0.0):.4f}, threshold={item.get('threshold', 0.5):.3f}"
+        )
 
     if result["achieved"]:
         print("Target metrics reached.")
