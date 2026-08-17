@@ -59,7 +59,7 @@ def edit_config(key, value):
 
     yaml_helper.edit_yaml(key, value)
 
-def get_config_value(key, default=None):
+def get_config_value(key, default=None) -> str | int | float | bool | dict | list | None:
     """
     Retrieves a configuration value from the loaded configuration dictionary.
     If the key does not exist, it returns the specified default value.
@@ -93,6 +93,38 @@ def get_config_value(key, default=None):
             os.makedirs(os.path.dirname(value), exist_ok=True)
 
     return value
+
+def get_config_dict() -> dict:
+    """
+    Returns the entire configuration dictionary loaded from the YAML file.
+    """
+    return load_config()
+
+def get_config_val_as_int(key, default=0) -> int:
+    """
+    Retrieves a configuration value as an integer.
+    If the key does not exist or cannot be converted to an integer, it returns the specified default value.
+    """
+    value = get_config_value(key, default)
+    try:
+        if isinstance(value, (dict, list)) or value is None:
+            return default
+        return int(value)
+    except (ValueError, TypeError):
+        return default
+
+def get_config_value_as_float(key, default=0.0) -> float:
+    """
+    Retrieves a configuration value as a float.
+    If the key does not exist or cannot be converted to a float, it returns the specified default value.
+    """
+    value = get_config_value(key, default)
+    try:
+        if isinstance(value, (dict, list)) or value is None:
+            return default
+        return float(value)
+    except (ValueError, TypeError):
+        return default
 
 def check_version_database(key, version):
     """

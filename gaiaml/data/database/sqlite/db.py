@@ -625,16 +625,14 @@ def append_reinforcement_examples(reinforcement_df):
     payload["is_confirmed_host"] = pd.to_numeric(payload["is_confirmed_host"], errors="coerce").fillna(0).astype(int)
     payload = payload.drop_duplicates(subset=["source_id"], keep="last")
 
-    existing_ids_df = pd.read_sql_query("SELECT source_id FROM reinforcement_examples", conn)
-    if not existing_ids_df.empty:
-        existing_ids = set(pd.to_numeric(existing_ids_df["source_id"], errors="coerce").dropna().astype("int64").tolist())
-        payload = payload[~payload["source_id"].isin(existing_ids)]
-
-    if payload.empty:
-        conn.close()
-        return
-
     payload["reinforced_at"] = pd.Timestamp.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+
+    # Upsert-like refresh: replace any existing rows for incoming source_ids with the latest payload values.
+    source_ids = payload["source_id"].tolist()
+    if source_ids:
+        placeholders = ", ".join(["?"] * len(source_ids))
+        conn.execute(f"DELETE FROM reinforcement_examples WHERE source_id IN ({placeholders})", source_ids)
+
     payload.to_sql("reinforcement_examples", conn, if_exists="append", index=False)
     conn.commit()
     conn.close()

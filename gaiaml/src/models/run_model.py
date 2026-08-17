@@ -12,10 +12,14 @@ from config import config_manager
 import logs.logger as logger
 from datetime import datetime
 
-def run_model():
+def run_model(count: int = 100, force_refresh: bool = False):
     """
     Pulls the trained model from the versioning database and uses it to make predictions on new data.
     """
+    # runtime counter for logging
+    start_time = datetime.now()
+
+
     logger.log_info("Running the trained model on new data...")
     # Prefer explicit config version, otherwise use latest model version in DB.
     model_version = config_manager.get_config_value("model_version", default=None)
@@ -29,7 +33,7 @@ def run_model():
     model: xgb.Booster = xgb.Booster()
 
     # Injest cleaned DR3 random data
-    rd: pd.DataFrame = db.fetch_data("gaia_dr3_data", -1, as_dataframe=True)  # Fetch all available Gaia rows
+    rd: pd.DataFrame = db.fetch_data("gaia_dr3_data", count, as_dataframe=True)  # Fetch all available Gaia rows
     if rd.empty:
         raise ValueError("gaia_dr3_data is empty. Download Gaia DR3 data before deployment.")
     if "source_id" not in rd.columns:
@@ -49,8 +53,6 @@ def run_model():
     decision_threshold = float(np.clip(decision_threshold, 0.05, 0.95)) - 1e-9
     logger.log_info(f"Using decision threshold {decision_threshold:.3f} for binary classification.")
 
-    # -- Evaluate the model for internal validation -- #
-
     # make predictions on the new data
     prediction_features = rd.drop(columns=["source_id", "is_confirmed_host"], errors="ignore")
     s_prediction: np.ndarray = model.predict(xgb.DMatrix(prediction_features))
@@ -59,6 +61,10 @@ def run_model():
         f"Predicted positives at threshold {decision_threshold:.3f}: "
         f"{predicted_positive_count}/{len(s_prediction)}"
     )
+
+    # Log time for model loading and prediction
+    load_time = datetime.now() - start_time
+    logger.log_info(f"Model loading and prediction took {load_time.total_seconds():.2f} seconds.")
 
     # Store prediction rows with source IDs for traceability.
     pred_df = pd.DataFrame({
@@ -103,6 +109,10 @@ def run_model():
                 "Skipped confirmed-host reinforcement scoring because required feature columns are missing."
             )
 
+    # Log time for reinforcement scoring
+    reinforcement_time = datetime.now() - start_time - load_time
+    logger.log_info(f"Reinforcement scoring took {reinforcement_time.total_seconds():.2f} seconds.")
+
     # Weigh overlap predictions against known hosts when overlap rows are present.
     if not known_hosts.empty and "source_id" in known_hosts.columns:
         # Merge predictions with known hosts to evaluate overlap when available.
@@ -129,6 +139,10 @@ def run_model():
         else:
             logger.log_warning("No overlapping source_ids found between predictions and known hosts for evaluation.")
 
+    # Log time for overlap evaluation
+    overlap_time = datetime.now() - start_time - load_time - reinforcement_time
+    logger.log_info(f"Overlap evaluation took {overlap_time.total_seconds():.2f} seconds.")
+
     # determine likelihood of new exoplanet candidates based on the model's predictions
     known_ids = set(known_hosts["source_id"].tolist()) if not known_hosts.empty and "source_id" in known_hosts.columns else set()
     candidate_mask = ~rd["source_id"].isin(known_ids)
@@ -154,7 +168,12 @@ def run_model():
                 f"source_id={int(row['source_id'])} likelihood={float(row['likelihood']):.4f} confidence={row['confidence']}"
             )
 
+    # log time for candidate scoring
+    candidate_time = datetime.now() - start_time - load_time - reinforcement_time - overlap_time
+    logger.log_info(f"Candidate scoring took {candidate_time.total_seconds():.2f} seconds.")
+
     # Save the model to the versioning database
+    ## Dont do this here, the model is already saved during training. This is just for reference.
 
     
     

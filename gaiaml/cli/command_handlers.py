@@ -43,7 +43,7 @@ def handle_help():
     print("  train - Train the model with the preprocessed data")
     print("  evaluate - Evaluate the trained model")
     print("  deploy - Deploy the trained model")
-    print("  automate-reinforce [max_iters] [target_accuracy] [target_precision] - Train repeatedly until metrics meet the target")
+    print("  automate-reinforce [max_iters] [target_accuracy] [target_precision] [target_recall] - Train repeatedly until metrics meet the target")
     print("  candidates [limit] - Show the highest-likelihood non-confirmed candidate predictions")
     print("  settings regen <table_name> - Regenerate a database table")
     print("  Chained commands: use ';' between commands")
@@ -235,8 +235,12 @@ def handle_automate_reinforce(args):
     max_iterations = int(args[0]) if len(args) > 0 and args[0].isdigit() else 5
     target_accuracy = float(args[1]) if len(args) > 1 else 0.99
     target_precision = float(args[2]) if len(args) > 2 else 0.99
+    target_recall = float(args[3]) if len(args) > 3 else 0.99
 
-    print(f"Starting reinforcement training loop for up to {max_iterations} iterations...")
+    print(
+        f"Starting reinforcement training loop for up to {max_iterations} iterations "
+        f"(targets: accuracy>={target_accuracy:.3f}, precision>={target_precision:.3f}, recall>={target_recall:.3f})..."
+    )
 
     def train_iteration(iteration):
         X, y = preprocessor.create_training_dataset_from_gaia_dr3()
@@ -269,6 +273,7 @@ def handle_automate_reinforce(args):
         max_iterations=max_iterations,
         target_accuracy=target_accuracy,
         target_precision=target_precision,
+        target_recall=target_recall,
     )
 
     print("Reinforcement training summary:")

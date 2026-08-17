@@ -100,7 +100,7 @@ The CLI supports the following core commands:
 - `preprocess`: preprocess Gaia and confirmed exoplanets datasets
 - `train`: train the XGBoost model
 - `deploy`: run the trained model on the current dataset and persist candidate likelihoods
-- `automate-reinforce`: run repeated training/evaluation cycles and stop when target metrics are reached
+- `automate-reinforce`: run repeated training/evaluation cycles and stop when accuracy, precision, and recall targets are reached
 - `candidates`: view the top-ranked candidate likelihoods stored from deployment runs
 - `config`: load/open/edit config values
 - `settings regen`: regenerate a specific database table schema
