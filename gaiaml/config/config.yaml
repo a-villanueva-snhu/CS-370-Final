@@ -1,4 +1,10 @@
 boosting_round_num: 100
+reinforcement_training:
+  enabled: true
+  max_iterations: 25
+  target_accuracy: 0.99
+  target_precision: 0.99
+  target_recall: 0.99
 database_settings:
   database_file_path: /data/database/sqlite/gaiaml.db
   database_name: gaiaml_db

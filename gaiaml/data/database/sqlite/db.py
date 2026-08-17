@@ -5,6 +5,7 @@
 
 import os
 import sqlite3
+from pathlib import Path
 from typing import Literal, overload
 import pandas as pd
 import numpy as np
@@ -78,6 +79,13 @@ schemas = {
         'source_id INTEGER',
         'likelihood REAL'
     ],
+    'reinforcement_examples': [
+        'id INTEGER PRIMARY KEY AUTOINCREMENT',
+        'source_id INTEGER',
+        'is_confirmed_host INTEGER',
+        'prediction REAL',
+        'reinforced_at TEXT'
+    ],
 }
 
 
@@ -123,6 +131,8 @@ def initialize_database():
         crud.create_table(cursor, 'predictions', schemas['predictions'])
     if not crud.table_exists(cursor, 'new_exoplanet_candidates'):
         crud.create_table(cursor, 'new_exoplanet_candidates', schemas['new_exoplanet_candidates'])
+    if not crud.table_exists(cursor, 'reinforcement_examples'):
+        crud.create_table(cursor, 'reinforcement_examples', schemas['reinforcement_examples'])
 
     else:
         cursor.execute("PRAGMA table_info(model_versioning)")
@@ -437,6 +447,8 @@ def save_model_version_json(version, date_created, f1, accuracy, precision, reca
     :param recall: Recall of the model
     :param model_json: JSON string representation of the model
     """
+    if isinstance(model_json, str) and not os.path.isabs(model_json):
+        model_json = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..', model_json))
     conn = sqlite3.connect(_get_database_path())
     cursor = conn.cursor()
 
@@ -487,7 +499,7 @@ def load_model_from_versioning(version):
     conn.close()
 
     if result:
-        return result[0]
+        return _resolve_model_path(result[0]) or result[0]
 
     logger.log_warning(f"No model found for version {version}.")
     return None
@@ -503,14 +515,72 @@ def get_latest_model_version():
     return row[0] if row else None
 
 
-def store_predictions(table_name, predictions):
+def get_latest_model_metrics():
+    """Fetch the most recently saved model metrics and version metadata."""
+    conn = sqlite3.connect(_get_database_path())
+    cursor = conn.cursor()
+    cursor.execute(
+        """
+        SELECT version, date_created, f1, accuracy, precision, recall, model_json
+        FROM model_versioning
+        ORDER BY rowid DESC
+        LIMIT 1
+        """
+    )
+    row = cursor.fetchone()
+    conn.close()
+    if not row:
+        return None
+
+    columns = [
+        "version",
+        "date_created",
+        "f1",
+        "accuracy",
+        "precision",
+        "recall",
+        "model_json",
+    ]
+    return dict(zip(columns, row))
+
+
+def _resolve_model_path(model_json_path: str | None) -> str | None:
+    """Resolve a stored model path against the current working directory and project root."""
+    if not model_json_path:
+        return None
+
+    raw_path = Path(model_json_path)
+    if raw_path.is_absolute():
+        return str(raw_path) if raw_path.exists() else None
+
+    package_root = Path(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..')))
+    repo_root = package_root.parent
+    candidates = [
+        Path.cwd() / raw_path,
+        package_root / raw_path,
+        repo_root / raw_path,
+    ]
+    for candidate in candidates:
+        if candidate.exists():
+            return str(candidate.resolve())
+
+    return model_json_path
+
+
+def store_predictions(table_name, predictions, replace_existing=False):
     """
     Store model predictions in the specified table in the database.
 
     :param table_name: Name of the table to store predictions
     :param predictions: List or array of predictions to store
+    :param replace_existing: When True, clear prior rows in the target table before inserting new data.
     """
     conn = sqlite3.connect(_get_database_path())
+
+    if replace_existing:
+        cursor = conn.cursor()
+        cursor.execute(f"DELETE FROM {table_name}")
+        conn.commit()
 
     if table_name == "predictions":
         if isinstance(predictions, pd.DataFrame):
@@ -534,5 +604,35 @@ def store_predictions(table_name, predictions):
     else:
         raise ValueError(f"Unsupported predictions table: {table_name}")
 
+    conn.commit()
+    conn.close()
+
+
+def append_reinforcement_examples(reinforcement_df):
+    """Append verified examples to the reinforcement_examples table for future training cycles."""
+    if reinforcement_df is None or reinforcement_df.empty:
+        return
+
+    if not {"source_id", "is_confirmed_host", "prediction"}.issubset(reinforcement_df.columns):
+        raise ValueError("reinforcement_df must include source_id, is_confirmed_host, and prediction columns")
+
+    conn = sqlite3.connect(_get_database_path())
+    payload = reinforcement_df[["source_id", "is_confirmed_host", "prediction"]].copy()
+    payload = payload.dropna(subset=["source_id", "is_confirmed_host", "prediction"])
+    payload["source_id"] = pd.to_numeric(payload["source_id"], errors="coerce")
+    payload = payload.dropna(subset=["source_id"])
+    payload["source_id"] = payload["source_id"].astype("int64")
+    payload["is_confirmed_host"] = pd.to_numeric(payload["is_confirmed_host"], errors="coerce").fillna(0).astype(int)
+    payload = payload.drop_duplicates(subset=["source_id"], keep="last")
+
+    payload["reinforced_at"] = pd.Timestamp.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+
+    # Upsert-like refresh: replace any existing rows for incoming source_ids with the latest payload values.
+    source_ids = payload["source_id"].tolist()
+    if source_ids:
+        placeholders = ", ".join(["?"] * len(source_ids))
+        conn.execute(f"DELETE FROM reinforcement_examples WHERE source_id IN ({placeholders})", source_ids)
+
+    payload.to_sql("reinforcement_examples", conn, if_exists="append", index=False)
     conn.commit()
     conn.close()

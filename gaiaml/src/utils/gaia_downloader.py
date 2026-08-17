@@ -22,11 +22,11 @@ def _get_database_path() -> str:
     return db_path
 
 
-def _table_has_rows(table_name):
+def _table_row_count(table_name):
     try:
-        return len(db.fetch_data(table_name, limit=1)) > 0
+        return len(db.fetch_data(table_name, limit=-1))
     except sqlite3.Error:
-        return False
+        return 0
 
 def download_gaia_dr3_data(count=100, force_refresh=False):
     """
@@ -66,7 +66,8 @@ def download_gaia_dr3_data(count=100, force_refresh=False):
         
         # Insert natively into SQLite (replaces custom db handler)
         with sqlite3.connect(_get_database_path()) as conn:
-            df.to_sql('gaia_dr3_data', conn, if_exists='append', index=False)
+            write_mode = 'replace' if force_refresh else 'append'
+            df.to_sql('gaia_dr3_data', conn, if_exists=write_mode, index=False)
             
             logger.log_info(f"Gaia DR3 data downloaded and inserted into the database. Rows: {len(df)}")
 
@@ -83,8 +84,12 @@ def download_confirmed_exoplanets_data(count=10, force_refresh=False):
     """
     Downloads a small confirmed exoplanets dataset from Gaia DR3 to test the database insertion.
     """
-    if not force_refresh and _table_has_rows('confirmed_exoplanets_data'):
-        logger.log_info("Using cached confirmed_exoplanets_data rows. Skipping remote Gaia download.")
+    existing_count = _table_row_count('confirmed_exoplanets_data')
+    if not force_refresh and existing_count >= count:
+        logger.log_info(
+            f"Using cached confirmed_exoplanets_data rows ({existing_count}). "
+            f"Requested {count}; skipping remote Gaia download."
+        )
         return
 
     query = f"""
@@ -113,10 +118,20 @@ def download_confirmed_exoplanets_data(count=10, force_refresh=False):
             logger.log_error("Confirmed exoplanets query returned no results.")
             return
         
-        # NATIVE DATABASE STORAGE:
+        # Keep columns aligned to model feature expectations and mark confirmed positives.
         df: pd.DataFrame = results.to_pandas()
+        expected_cols = [
+            'source_id', 'ra', 'dec', 'parallax',
+            'phot_g_mean_mag', 'phot_bp_mean_mag', 'phot_rp_mean_mag'
+        ]
+        df = df[[col for col in expected_cols if col in df.columns]].copy()
+        df['is_confirmed_host'] = 1
+
         with sqlite3.connect(db_path) as conn:
-            df.to_sql('confirmed_exoplanets_data', conn, if_exists='replace', index=False)
+            # A larger request must replace the smaller cache; appending TOP N
+            # results would duplicate the same leading rows.
+            write_mode = 'replace' if force_refresh or existing_count < count else 'append'
+            df.to_sql('confirmed_exoplanets_data', conn, if_exists=write_mode, index=False)
             
         logger.log_info(f"Confirmed exoplanets data downloaded and inserted into the database. Rows: {len(df)} Path: {db_path}")
         
